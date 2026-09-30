@@ -22,7 +22,9 @@ const PORT = process.env.PORT || 4000;
 // ---- x402 支付保护（可选启用）---------------------------------
 // 官方文档: https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/service-seller-sdk
 // 启用条件: .env 中配置 X402_NETWORK / PAY_TO_ADDRESS / OKX_API_KEY 三件套
-const x402Enabled = !!process.env.OKX_API_KEY && !!process.env.PAY_TO_ADDRESS;
+const x402Enabled = !!process.env.OKX_API_KEY;
+// PAY_TO_ADDRESS 缺省回落到 Agentic Wallet 收款地址，避免漏配时静默进入开发模式
+process.env.PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0xe716aac67216948dad46fa4d610cc297e13d03f8';
 
 let paymentMiddleware = null;
 if (x402Enabled) {
