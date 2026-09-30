@@ -77,7 +77,7 @@ async function buildBrief(instId = 'BTC-USDT') {
 
   const ind = analyze(rows.map((r) => r.close));
 
-  // 市场状态判定（对标任务大厅同类简报的口径）
+  // 市场状态判定
   let regime = '中性';
   if (ch24 > 3 && ind.rsi > 55) regime = '风险偏好';
   else if (ch24 < -3 || ind.rsi < 35) regime = '风险厌恶';
@@ -152,7 +152,7 @@ function toPreview(data) {
     price: data.fact.price,
     change24h: data.fact.change['24h'],
     regime: data.analysis.regime,
-    upsell: '完整报告（RSI/趋势/关键位/Markdown 全文）请付费调用。定价见 PAYMENT 配置。',
+    upsell: '完整报告（RSI/趋势/关键位/Markdown 全文）需通过 x402 付费调用。',
   };
 }
 
