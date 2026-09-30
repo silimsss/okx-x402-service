@@ -1,0 +1,6 @@
+node_modules/
+server.log
+server2.log
+mock.log
+*.pid
+.env

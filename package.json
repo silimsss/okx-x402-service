@@ -1,0 +1,17 @@
+{
+  "name": "okx-x402-crypto-brief",
+  "version": "1.0.0",
+  "description": "Crypto Market Pulse - x402 paid crypto market briefing API for OKX.AI Agent marketplace",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node test/smoke.js"
+  },
+  "keywords": ["x402", "okx", "agent", "crypto", "market-brief"],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
