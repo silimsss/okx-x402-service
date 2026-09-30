@@ -120,7 +120,16 @@ const MAJOR_INSTS = ['BTC-USDT-SWAP', 'ETH-USDT-SWAP', 'SOL-USDT-SWAP', 'XRP-USD
 
 async function okxPublic(path) {
   return cached(`okx:${path}`, 60_000, async () => {
-    const j = await fetchJson(OKX_BASE + path);
+    let j;
+    try {
+      j = await fetchJson(OKX_BASE + path);
+    } catch (err) {
+      // 主站受限时回落到 OKX 海外入口（Render/海外服务器可直连 aws 域名）
+      const alt = OKX_BASE.replace('www.okx.com', 'aws.okx.com');
+      if (alt !== OKX_BASE) {
+        j = await fetchJson(alt + path);
+      } else throw err;
+    }
     return j.data !== undefined ? j : j;
   });
 }
@@ -134,10 +143,25 @@ async function fundingScan(instId) {
     if (!single) throw new Error(`no data for ${instId}`);
     return fmtFunding([single], false);
   }
-  // 全量扫描：拿所有 USDT 永续的资金费率 + ticker 按成交额排序
-  const all = await okxPublic('/api/v5/public/funding-rate?instType=SWAP');
+  // 全量扫描：拉取所有 SWAP 资金费率（分批按 uly 组，避免单次全量被拒）
+  // OKX funding-rate 全量接口不稳定，改用 instruments 先列再逐个查的成本太高，
+  // 折中：先试全量 instType=SWAP，失败则用常见主流币列表
+  let allRows;
+  try {
+    const all = await okxPublic('/api/v5/public/funding-rate?instType=SWAP');
+    allRows = Array.isArray(all) ? all : all.data;
+  } catch (e) {
+    const fallback = [];
+    for (const inst of MAJOR_INSTS) {
+      try {
+        const one = await okxPublic(`/api/v5/public/funding-rate?instId=${inst}`);
+        const row = Array.isArray(one) ? one[0] : one.data ? one.data[0] : null;
+        if (row) fallback.push(row);
+      } catch (_) { /* skip */ }
+    }
+    allRows = fallback;
+  }
   const tickers = await okxPublic('/api/v5/market/tickers?instType=SWAP');
-  const allRows = Array.isArray(all) ? all : all.data;
   const tickRows = Array.isArray(tickers) ? tickers : tickers.data;
   const volMap = new Map(tickRows.map((t) => [t.instId, +t.volCcy24h || 0]));
   const rows = allRows
