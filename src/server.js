@@ -3,14 +3,14 @@
  * Crypto Market Pulse — HTTP 服务
  *
  * 路由:
- *   GET /health                 -> 健康检查（免费）
- *   GET /v1/preview/:instId     -> 免费预览（引流/信誉积累）
- *   GET /v1/brief/:instId       -> 完整付费快报（x402: $0.05/次）
+ *   GET /health                 -> 健康检查
+ *   GET /v1/preview/:instId     -> 免费预览
+ *   GET /v1/brief/:instId       -> 完整快报（x402: $0.05/次）
  *
  * x402 说明:
- *   按 OKX 官方推荐 @okxweb3/x402-express 接入。当配置了 OKX API Key
- *   （见 .env.example）时，付费接口受 402 支付保护；未配置时服务自动以
- *   "开发模式"运行（直接放行并在响应中标注），便于本地调试与测试网验证。
+ *   使用 @okxweb3/x402-express 接入。配置 OKX API Key（见 .env.example）后，
+ *   付费接口受 402 支付保护；未配置时服务以开发模式运行（直接放行并在响应中
+ *   标注），便于本地调试。
  */
 
 const express = require('express');
@@ -20,10 +20,10 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // ---- x402 支付保护（可选启用）---------------------------------
-// 官方文档: https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/service-seller-sdk
-// 启用条件: .env 中配置 X402_NETWORK / PAY_TO_ADDRESS / OKX_API_KEY 三件套
+// 文档: https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/service-seller-sdk
+// 启用条件: .env 中配置 X402_NETWORK / PAY_TO_ADDRESS / OKX_API_KEY
 const x402Enabled = !!process.env.OKX_API_KEY;
-// PAY_TO_ADDRESS 缺省回落到 Agentic Wallet 收款地址，避免漏配时静默进入开发模式
+// PAY_TO_ADDRESS 缺省回落到 Agentic Wallet 收款地址
 process.env.PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0xe716aac67216948dad46fa4d610cc297e13d03f8';
 
 let paymentMiddleware = null;
@@ -63,7 +63,7 @@ if (x402Enabled) {
     console.error('[x402] SDK 未安装或初始化失败，退回开发模式:', err.message);
   }
 } else {
-  console.log('[x402] 未配置 OKX_API_KEY —— 开发模式（付费接口放行，方便联调）');
+  console.log('[x402] 未配置 OKX_API_KEY，以开发模式运行（付费接口放行）');
 }
 
 const devMode = (req, res, next) => {
@@ -81,7 +81,7 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// 免费预览：给广场用户/Agent 免费试用的钩子
+// 免费预览
 app.get('/v1/preview/:instId', async (req, res) => {
   try {
     const data = await buildBrief(req.params.instId);
