@@ -15,6 +15,7 @@
 
 const express = require('express');
 const { buildBrief, toPreview } = require('./brief');
+const mx = require('./matrix');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -54,6 +55,46 @@ if (x402Enabled) {
           description: 'Crypto Market Brief (RSI/trend/key levels, JSON+Markdown)',
           mimeType: 'application/json',
         },
+        'GET /v1/sentiment': {
+          accepts: [{
+            scheme: 'exact',
+            network: process.env.X402_NETWORK || 'eip155:196',
+            payTo: process.env.PAY_TO_ADDRESS,
+            price: '$0.02',
+          }],
+          description: 'Fear & Greed sentiment dashboard (7d history + analysis)',
+          mimeType: 'application/json',
+        },
+        'GET /v1/funding': {
+          accepts: [{
+            scheme: 'exact',
+            network: process.env.X402_NETWORK || 'eip155:196',
+            payTo: process.env.PAY_TO_ADDRESS,
+            price: '$0.03',
+          }],
+          description: 'OKX funding rate radar (full scan, top lists, annualized)',
+          mimeType: 'application/json',
+        },
+        'GET /v1/funding/:instId': {
+          accepts: [{
+            scheme: 'exact',
+            network: process.env.X402_NETWORK || 'eip155:196',
+            payTo: process.env.PAY_TO_ADDRESS,
+            price: '$0.02',
+          }],
+          description: 'Single-instrument funding rate detail',
+          mimeType: 'application/json',
+        },
+        'GET /v1/combo/:instId': {
+          accepts: [{
+            scheme: 'exact',
+            network: process.env.X402_NETWORK || 'eip155:196',
+            payTo: process.env.PAY_TO_ADDRESS,
+            price: '$0.08',
+          }],
+          description: 'Combo: sentiment + funding + spot context for one pair',
+          mimeType: 'application/json',
+        },
       },
       resourceServer,
     );
@@ -77,7 +118,12 @@ app.get('/health', (_req, res) => {
     ok: true,
     service: 'crypto-market-pulse',
     x402: x402Enabled ? 'enabled' : 'dev-mode',
-    endpoints: ['/v1/preview/:instId (free)', '/v1/brief/:instId (x402 $0.05)'],
+    endpoints: [
+      '/v1/preview/:instId (free)', '/v1/brief/:instId (x402 $0.05)',
+      '/v1/sentiment/preview (free)', '/v1/sentiment (x402 $0.02)',
+      '/v1/funding/preview (free)', '/v1/funding[/:instId] (x402 $0.03)',
+      '/v1/combo/preview/:instId (free)', '/v1/combo/:instId (x402 $0.08)',
+    ],
   });
 });
 
@@ -99,6 +145,49 @@ app.get('/v1/brief/:instId', devMode, async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: 'upstream_error', message: err.message });
   }
+});
+
+// ---- 矩阵扩展：情绪 / 费率 / 三合一 --------------------------------
+
+app.get('/v1/sentiment/preview', async (_req, res) => {
+  try { res.json(mx.sentimentPreview(await mx.sentimentReport())); }
+  catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/sentiment', devMode, async (req, res) => {
+  try { res.json(req.devMode ? { ...(await mx.sentimentReport()), _devMode: true } : await mx.sentimentReport()); }
+  catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/funding/preview', async (_req, res) => {
+  try { res.json(mx.fundingPreview(await mx.fundingScan())); }
+  catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/funding', devMode, async (req, res) => {
+  try {
+    const data = await mx.fundingScan();
+    const report = mx.fundingReport(data);
+    res.json(req.devMode ? { ...data, report, _devMode: true } : { ...data, report });
+  } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/funding/:instId', devMode, async (req, res) => {
+  try {
+    const instId = req.params.instId.replace(/-SWAP$/, '');
+    const data = await mx.fundingScan(`${instId}-SWAP`);
+    res.json(req.devMode ? { ...data, _devMode: true } : { ...data, report: mx.fundingReport(data, instId) });
+  } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/combo/preview/:instId', async (req, res) => {
+  try { res.json(mx.comboPreview(await mx.comboBrief(req.params.instId))); }
+  catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/combo/:instId', devMode, async (req, res) => {
+  try { res.json(req.devMode ? { ...(await mx.comboBrief(req.params.instId)), _devMode: true } : await mx.comboBrief(req.params.instId)); }
+  catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
 });
 
 if (require.main === module) {
