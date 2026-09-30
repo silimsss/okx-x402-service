@@ -1,0 +1,16 @@
+[
+  {
+    "serviceName": "加密行情快报 Pro",
+    "serviceDescription": "生成 BTC/ETH/SOL 等 OKX USDT 交易对的实时市场快报\ninstId (string, required): 交易对名称，如 BTC-USDT、ETH-USDT、SOL-USDT\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/brief/BTC-USDT",
+    "serviceType": "A2MCP",
+    "fee": "0.05",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/brief"
+  },
+  {
+    "serviceName": "行情速览免费版",
+    "serviceDescription": "免费获取 BTC/ETH/SOL 等交易对的实时价格速览，包含现价、24小时涨跌幅和市场风险状态判定\ninstId (string, required): 交易对名称，如 BTC-USDT、ETH-USDT\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/preview/BTC-USDT",
+    "serviceType": "A2MCP",
+    "fee": "0",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/preview"
+  }
+]
