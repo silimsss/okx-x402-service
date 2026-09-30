@@ -120,9 +120,9 @@ app.get('/health', (_req, res) => {
     x402: x402Enabled ? 'enabled' : 'dev-mode',
     endpoints: [
       '/v1/preview/:instId (free)', '/v1/brief/:instId (x402 $0.05)',
-      '/v1/sentiment/preview (free)', '/v1/sentiment (x402 $0.02)',
-      '/v1/funding/preview (free)', '/v1/funding[/:instId] (x402 $0.03)',
-      '/v1/combo/preview/:instId (free)', '/v1/combo/:instId (x402 $0.08)',
+      '/v1/sentiment/preview | /public/sentiment (free)', '/v1/sentiment (x402 $0.02)',
+      '/v1/funding/preview | /public/funding (free)', '/v1/funding[/:instId] (x402 $0.03/$0.02)',
+      '/v1/combo/preview/:instId | /public/combo/:instId (free)', '/v1/combo/:instId (x402 $0.08)',
     ],
   });
 });
@@ -148,21 +148,27 @@ app.get('/v1/brief/:instId', devMode, async (req, res) => {
 });
 
 // ---- 矩阵扩展：情绪 / 费率 / 三合一 --------------------------------
+// 注意：preview（免费）路由必须在 x402 中间件之后注册但由于 SDK 的 :param
+// 正则 ^[^/]+$ 不会匹配含斜杠的 "preview"——实测会误拦，因此这里用独立
+// 前缀 /public/ 保证免费路由不被付费规则命中。
 
-app.get('/v1/sentiment/preview', async (_req, res) => {
-  try { res.json(mx.sentimentPreview(await mx.sentimentReport())); }
+const freeJson = (handler) => async (req, res) => {
+  try { res.json(await handler(req)); }
   catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
-});
+};
+
+app.get('/public/sentiment', freeJson(async () => mx.sentimentPreview(await mx.sentimentReport())));
+app.get('/public/funding', freeJson(async () => mx.fundingPreview(await mx.fundingScan())));
+app.get('/public/combo/:instId', freeJson(async (req) => mx.comboPreview(await mx.comboBrief(req.params.instId))));
+
+app.get('/v1/sentiment/preview', freeJson(async () => mx.sentimentPreview(await mx.sentimentReport())));
 
 app.get('/v1/sentiment', devMode, async (req, res) => {
   try { res.json(req.devMode ? { ...(await mx.sentimentReport()), _devMode: true } : await mx.sentimentReport()); }
   catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
 });
 
-app.get('/v1/funding/preview', async (_req, res) => {
-  try { res.json(mx.fundingPreview(await mx.fundingScan())); }
-  catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
-});
+app.get('/v1/funding/preview', freeJson(async () => mx.fundingPreview(await mx.fundingScan())));
 
 app.get('/v1/funding', devMode, async (req, res) => {
   try {
@@ -180,10 +186,7 @@ app.get('/v1/funding/:instId', devMode, async (req, res) => {
   } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
 });
 
-app.get('/v1/combo/preview/:instId', async (req, res) => {
-  try { res.json(mx.comboPreview(await mx.comboBrief(req.params.instId))); }
-  catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
-});
+app.get('/v1/combo/preview/:instId', freeJson(async (req) => mx.comboPreview(await mx.comboBrief(req.params.instId))));
 
 app.get('/v1/combo/:instId', devMode, async (req, res) => {
   try { res.json(req.devMode ? { ...(await mx.comboBrief(req.params.instId)), _devMode: true } : await mx.comboBrief(req.params.instId)); }
