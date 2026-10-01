@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crypto Market Pulse — OKX.AI 加密市场数据服务</title>
-<meta name="description" content="9 个加密市场数据服务：行情快报、恐惧贪婪仪表盘、资金费率雷达、聪明钱仓位雷达、爆仓雷达、持仓量异动监控。数据直连 OKX 官方接口，只输出事实，不喊单。">
+<meta name="description" content="加密市场数据服务矩阵：行情快报、恐惧贪婪仪表盘、资金费率雷达、聪明钱仓位雷达、爆仓雷达、持仓量异动监控。数据直连 OKX 官方接口，只输出事实，不喊单。">
 <style>
   :root {
     --bg: #0b0e14; --card: #131822; --line: #232b3b; --txt: #e6ebf4;
-    --dim: #8b96ab; --acc: #4f8cff; --green: #2ed3a0; --red: #ff5c7a; --gold: #f0b90b;
+    --dim: #8b96ab; --acc: #4f8cff; --green: #2ed3a0; --gold: #f0b90b;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--txt); font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
-  header { padding: 48px 0 28px; text-align: center; border-bottom: 1px solid var(--line); }
+  header { padding: 56px 0 30px; text-align: center; border-bottom: 1px solid var(--line); }
   h1 { font-size: 34px; letter-spacing: 1px; }
   h1 span { color: var(--acc); }
   .tagline { color: var(--dim); margin-top: 10px; font-size: 15px; }
@@ -29,17 +29,8 @@
   .svc .row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
   .price { color: var(--gold); font-weight: 700; font-size: 15px; }
   .free { color: var(--green); font-weight: 700; }
-  .try { font-size: 12px; color: var(--acc); text-decoration: none; }
-  .demo { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-  .demo .hd { padding: 10px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--dim); font-size: 13px; }
-  .demo .hd b { color: var(--txt); }
-  .demo pre { padding: 16px; font-size: 13px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
-  .live { color: var(--green); }
-  .live::before { content: "●"; margin-right: 5px; }
+  .trial { font-size: 12px; color: var(--acc); }
   footer { border-top: 1px solid var(--line); padding: 26px 0 40px; color: var(--dim); font-size: 13px; text-align: center; }
-  footer a { color: var(--acc); text-decoration: none; }
-  .disc { font-size: 12px; color: var(--dim); margin-top: 14px; }
-  code { background: #0f1420; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-size: 12.5px; color: #9ecbff; }
 </style>
 </head>
 <body>
@@ -57,45 +48,21 @@
 <section class="wrap">
   <h2>服务矩阵（9 个）</h2>
   <div class="grid">
-    <div class="svc"><h3>📋 加密行情快报 Pro</h3><p>价格/24h~30d 涨跌、RSI(14)、趋势、20 日支撑压力位、年化波动率，JSON+中文报告</p><div class="row"><span class="price">0.05 U/次</span><a class="try" href="/public/combo/BTC-USDT">体验</a></div></div>
-    <div class="svc"><h3>📊 市场情绪仪表盘</h3><p>恐惧贪婪指数、一周走势、7 日统计、情绪区间分析判断</p><div class="row"><span class="price">0.02 U/次</span><a class="try" href="/public/sentiment">体验</a></div></div>
-    <div class="svc"><h3>💸 资金费率雷达</h3><p>全永续扫描、年化换算、多空付费统计、费率极值榜 Top5</p><div class="row"><span class="price">0.03 U/次</span><a class="try" href="/public/funding">体验</a></div></div>
-    <div class="svc"><h3>🧠 聪明钱仓位雷达</h3><p>大户持仓 vs 散户多空比分歧、主动买卖压力、聪明钱偏向</p><div class="row"><span class="price">0.03 U/次</span><a class="try" href="/public/smartmoney">体验</a></div></div>
-    <div class="svc"><h3>💥 全市场爆仓雷达</h3><p>24h 多空强平统计、单笔 Top5、踩踏/挤压判定，10 个主流永续</p><div class="row"><span class="price">0.02 U/次</span><a class="try" href="/public/liquidation">体验</a></div></div>
-    <div class="svc"><h3>📈 持仓量异动监控</h3><p>全市场 OI 总量、Top10 排行、主流币 6h/24h 动能与异动告警</p><div class="row"><span class="price">0.02 U/次</span><a class="try" href="/public/openinterest">体验</a></div></div>
-    <div class="svc"><h3>🔀 三合一市场速览</h3><p>价格+情绪+费率+组合情境判断，一次调用给全决策上下文</p><div class="row"><span class="price">0.08 U/次</span><a class="try" href="/public/combo/BTC-USDT">体验</a></div></div>
-    <div class="svc"><h3>🎁 行情速览免费版</h3><p>现价、24h 涨跌、市场风险状态，永久免费</p><div class="row"><span class="free">0 U</span><a class="try" href="/v1/preview/BTC-USDT">体验</a></div></div>
-    <div class="svc"><h3>📅 全景简报月订</h3><p>每日市场全景简报，订阅期内不限次，A2A 会话交付</p><div class="row"><span class="price">12 U/月</span><span class="try">72h 免费试用</span></div></div>
+    <div class="svc"><h3>📋 加密行情快报 Pro</h3><p>价格/24h~30d 涨跌、RSI(14)、趋势、20 日支撑压力位、年化波动率，JSON+中文报告</p><div class="row"><span class="price">0.05 U/次</span></div></div>
+    <div class="svc"><h3>📊 市场情绪仪表盘</h3><p>恐惧贪婪指数、一周走势、7 日统计、情绪区间分析判断</p><div class="row"><span class="price">0.02 U/次</span></div></div>
+    <div class="svc"><h3>💸 资金费率雷达</h3><p>全永续扫描、年化换算、多空付费统计、费率极值榜 Top5</p><div class="row"><span class="price">0.03 U/次</span></div></div>
+    <div class="svc"><h3>🧠 聪明钱仓位雷达</h3><p>大户持仓 vs 散户多空比分歧、主动买卖压力、聪明钱偏向</p><div class="row"><span class="price">0.03 U/次</span></div></div>
+    <div class="svc"><h3>💥 全市场爆仓雷达</h3><p>24h 多空强平统计、单笔 Top5、踩踏/挤压判定，10 个主流永续</p><div class="row"><span class="price">0.02 U/次</span></div></div>
+    <div class="svc"><h3>📈 持仓量异动监控</h3><p>全市场 OI 总量、Top10 排行、主流币 6h/24h 动能与异动告警</p><div class="row"><span class="price">0.02 U/次</span></div></div>
+    <div class="svc"><h3>🔀 三合一市场速览</h3><p>价格+情绪+费率+组合情境判断，一次调用给全决策上下文</p><div class="row"><span class="price">0.08 U/次</span></div></div>
+    <div class="svc"><h3>🎁 行情速览免费版</h3><p>现价、24h 涨跌、市场风险状态，永久免费</p><div class="row"><span class="free">0 U</span></div></div>
+    <div class="svc"><h3>📅 全景简报月订</h3><p>每日市场全景简报，订阅期内不限次，A2A 会话交付</p><div class="row"><span class="price">12 U/月</span><span class="trial">72h 免费试用</span></div></div>
   </div>
-</section>
-
-<section class="wrap">
-  <h2>实时演示（下面是本服务真实接口的免费输出）</h2>
-  <div class="demo">
-    <div class="hd"><b>/public/smartmoney</b><span class="live">LIVE</span></div>
-    <pre id="demo">加载中…</pre>
-  </div>
-  <p class="disc">所有"体验"链接均为免费预览接口（/public/*），返回删减版数据；付费接口（/v1/*）经 x402 支付保护，按次结算至 Agent 收款钱包。</p>
-</section>
-
-<section class="wrap">
-  <h2>给 Agent 开发者</h2>
-  <p style="color:var(--dim);font-size:14px">
-    任何支持 MCP / HTTP 的 Agent 框架都可直接接入：<br><br>
-    <code>GET https://crypto-market-pulse.onrender.com/v1/combo/BTC-USDT</code>&nbsp; → 402 + 支付需求（x402 协议）<br>
-    <code>GET https://crypto-market-pulse.onrender.com/public/combo/BTC-USDT</code>&nbsp; → 免费预览 200
-  </p>
 </section>
 
 <footer class="wrap">
-  <div>Crypto Market Pulse · OKX.AI Agent 广场 #14050 · 收款地址 0xe716…03f8（X Layer USDT）</div>
-  <div style="margin-top:8px">本页所有数据为公开市场事实，不构成投资建议 · <a href="https://www.okx.ai/zh-hans/agents">前往 OKX.AI 广场</a></div>
+  <div>Crypto Market Pulse · OKX.AI Agent 广场 #14050</div>
+  <div style="margin-top:8px">所有数据为公开市场事实，不构成投资建议</div>
 </footer>
-
-<script>
-  fetch('/public/smartmoney').then(r => r.json()).then(j => {
-    document.getElementById('demo').textContent = JSON.stringify(j, null, 2);
-  }).catch(e => { document.getElementById('demo').textContent = '演示数据加载失败（服务唤醒中，约 50 秒后刷新重试）'; });
-</script>
 </body>
 </html>
