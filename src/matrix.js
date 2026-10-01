@@ -289,6 +289,7 @@ function comboPreview(data) {
 }
 
 module.exports = {
+  okxPublic,
   sentimentReport, sentimentPreview,
   fundingScan, fundingReport, fundingPreview,
   comboBrief, comboPreview,

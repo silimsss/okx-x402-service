@@ -16,6 +16,7 @@
 const express = require('express');
 const { buildBrief, toPreview } = require('./brief');
 const mx = require('./matrix');
+const rd = require('./radar');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -95,6 +96,36 @@ if (x402Enabled) {
           description: 'Combo: sentiment + funding + spot context for one pair',
           mimeType: 'application/json',
         },
+        'GET /v1/smartmoney': {
+          accepts: [{
+            scheme: 'exact',
+            network: process.env.X402_NETWORK || 'eip155:196',
+            payTo: process.env.PAY_TO_ADDRESS,
+            price: '$0.03',
+          }],
+          description: 'Smart-money positioning radar (top-trader vs retail long/short divergence)',
+          mimeType: 'application/json',
+        },
+        'GET /v1/liquidation': {
+          accepts: [{
+            scheme: 'exact',
+            network: process.env.X402_NETWORK || 'eip155:196',
+            payTo: process.env.PAY_TO_ADDRESS,
+            price: '$0.02',
+          }],
+          description: 'OKX perpetual liquidation radar (24h long/short squeeze stats)',
+          mimeType: 'application/json',
+        },
+        'GET /v1/openinterest': {
+          accepts: [{
+            scheme: 'exact',
+            network: process.env.X402_NETWORK || 'eip155:196',
+            payTo: process.env.PAY_TO_ADDRESS,
+            price: '$0.02',
+          }],
+          description: 'Open-interest monitor (market OI ranking + surge alerts)',
+          mimeType: 'application/json',
+        },
       },
       resourceServer,
     );
@@ -123,6 +154,9 @@ app.get('/health', (_req, res) => {
       '/v1/sentiment/preview | /public/sentiment (free)', '/v1/sentiment (x402 $0.02)',
       '/v1/funding/preview | /public/funding (free)', '/v1/funding[/:instId] (x402 $0.03/$0.02)',
       '/v1/combo/preview/:instId | /public/combo/:instId (free)', '/v1/combo/:instId (x402 $0.08)',
+      '/public/smartmoney (free)', '/v1/smartmoney (x402 $0.03, ?ccy=BTC 可选)',
+      '/public/liquidation (free)', '/v1/liquidation (x402 $0.02)',
+      '/public/openinterest (free)', '/v1/openinterest (x402 $0.02)',
     ],
   });
 });
@@ -147,15 +181,48 @@ app.get('/v1/brief/:instId', devMode, async (req, res) => {
   }
 });
 
-// ---- 矩阵扩展：情绪 / 费率 / 三合一 --------------------------------
-// 注意：preview（免费）路由必须在 x402 中间件之后注册但由于 SDK 的 :param
-// 正则 ^[^/]+$ 不会匹配含斜杠的 "preview"——实测会误拦，因此这里用独立
-// 前缀 /public/ 保证免费路由不被付费规则命中。
-
 const freeJson = (handler) => async (req, res) => {
   try { res.json(await handler(req)); }
   catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
 };
+
+// ---- 雷达矩阵：聪明钱 / 爆仓 / 持仓量异动 --------------------------
+// 付费路由均无 :param，不存在 preview 被误拦的问题；免费预览仍走 /public/*。
+
+app.get('/public/smartmoney', freeJson(async () => rd.smartPreview(await rd.smartScan(['BTC']))));
+app.get('/public/liquidation', freeJson(async () => rd.liqPreview(await rd.liqScan(['BTC-USDT', 'BTC-USD']))));
+app.get('/public/openinterest', freeJson(async () => rd.oiPreview(await rd.oiScan())));
+
+app.get('/v1/smartmoney', devMode, async (req, res) => {
+  try {
+    let ccys = null;
+    if (req.query.ccy) ccys = String(req.query.ccy).split(',').map((s) => s.trim()).filter(Boolean);
+    const data = await rd.smartScan(ccys || undefined);
+    const report = rd.smartReport(data);
+    res.json(req.devMode ? { ...data, report, _devMode: true } : { ...data, report });
+  } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/liquidation', devMode, async (req, res) => {
+  try {
+    const data = await rd.liqScan();
+    const report = rd.liqReport(data);
+    res.json(req.devMode ? { ...data, report, _devMode: true } : { ...data, report });
+  } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+app.get('/v1/openinterest', devMode, async (req, res) => {
+  try {
+    const data = await rd.oiScan();
+    const report = rd.oiReport(data);
+    res.json(req.devMode ? { ...data, report, _devMode: true } : { ...data, report });
+  } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+// ---- 矩阵扩展：情绪 / 费率 / 三合一 --------------------------------
+// 注意：preview（免费）路由必须在 x402 中间件之后注册但由于 SDK 的 :param
+// 正则 ^[^/]+$ 不会匹配含斜杠的 "preview"——实测会误拦，因此这里用独立
+// 前缀 /public/ 保证免费路由不被付费规则命中。
 
 app.get('/public/sentiment', freeJson(async () => mx.sentimentPreview(await mx.sentimentReport())));
 app.get('/public/funding', freeJson(async () => mx.fundingPreview(await mx.fundingScan())));

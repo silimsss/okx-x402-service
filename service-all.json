@@ -1,0 +1,68 @@
+[
+  {
+    "serviceName": "加密行情快报 Pro",
+    "serviceDescription": "生成 BTC/ETH/SOL 等 OKX USDT 交易对的实时市场快报\ninstId (string, required): 交易对名称，如 BTC-USDT、ETH-USDT、SOL-USDT\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/brief/BTC-USDT",
+    "serviceType": "A2MCP",
+    "fee": "0.05",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/brief"
+  },
+  {
+    "serviceName": "市场情绪仪表盘",
+    "serviceDescription": "加密市场恐惧贪婪指数仪表盘：当前读数、中文情绪标签、一周走势、7日均值与区间统计，附情绪区间分析判断\n无参数\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/sentiment",
+    "serviceType": "A2MCP",
+    "fee": "0.02",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/sentiment"
+  },
+  {
+    "serviceName": "资金费率雷达",
+    "serviceDescription": "OKX 全永续资金费率扫描：平均费率、年化换算、多空付费统计、费率极值榜（多头拥挤/空头拥挤 Top5）与主流币明细。传 instId 可查单币种\ninstId (string, optional): 交易对名称如 BTC-USDT，缺省时全市场扫描\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/funding",
+    "serviceType": "A2MCP",
+    "fee": "0.03",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/funding"
+  },
+  {
+    "serviceName": "三合一市场速览",
+    "serviceDescription": "一次调用获取单币种三合一决策上下文：实时价格与24h涨跌、恐惧贪婪情绪读数、资金费率及年化，并输出情绪x费率的组合情境判断\ninstId (string, required): 交易对名称，如 BTC-USDT\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/combo/BTC-USDT",
+    "serviceType": "A2MCP",
+    "fee": "0.08",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/combo"
+  },
+  {
+    "serviceName": "行情速览免费版",
+    "serviceDescription": "免费获取 BTC/ETH/SOL 等交易对的实时价格速览，包含现价、24小时涨跌幅和市场风险状态判定\ninstId (string, required): 交易对名称，如 BTC-USDT、ETH-USDT\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/preview/BTC-USDT",
+    "serviceType": "A2MCP",
+    "fee": "0",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/preview"
+  },
+  {
+    "serviceName": "聪明钱仓位雷达",
+    "serviceDescription": "对比 OKX 大户持仓多空比、大户账户多空比与全网散户多空比，结合合约主动买卖压力与持仓量变化，识别聪明钱与散户的方向分歧，输出中文信号报告，默认扫描 BTC/ETH/SOL\nccy (string, optional): 币种如 BTC、ETH、SOL，多个用逗号分隔，缺省时扫描 BTC/ETH/SOL\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/smartmoney",
+    "serviceType": "A2MCP",
+    "fee": "0.03",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/smartmoney"
+  },
+  {
+    "serviceName": "全市场爆仓雷达",
+    "serviceDescription": "扫描 OKX 主流永续近 24 小时强平数据：多空爆仓笔数与金额、单笔最大爆仓 Top5、多空强平金额比与踩踏/挤压判定，输出中文爆仓情报报告，覆盖 10 个主流永续\n无参数\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/liquidation",
+    "serviceType": "A2MCP",
+    "fee": "0.02",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/liquidation"
+  },
+  {
+    "serviceName": "持仓量异动监控",
+    "serviceDescription": "OKX 全永续持仓量监控：全市场 OI 总量与 Top10 排行、BTC/ETH/SOL 持仓量 6/24 小时动能，自动识别增仓滞涨、增仓上涨、大幅减仓等异动并输出中文持仓情报\n无参数\nGET\ncurl https://crypto-market-pulse.onrender.com/v1/openinterest",
+    "serviceType": "A2MCP",
+    "fee": "0.02",
+    "endpoint": "https://crypto-market-pulse.onrender.com/v1/openinterest"
+  },
+  {
+    "serviceName": "市场全景简报月订",
+    "serviceDescription": "每日市场全景简报：实时价格与涨跌、恐惧贪婪指数、全永续资金费率、聪明钱多空分歧、爆仓雷达与持仓量异动，合并为一份中文决策简报\n需提供：关注的币种列表（可选，缺省 BTC/ETH/SOL）\n订阅期内不限次获取当日最新全景简报，以中文 Markdown 在会话中交付",
+    "serviceType": "A2A",
+    "fee": "",
+    "subscription": [
+      { "interval": "month", "fee": "12" }
+    ],
+    "freeTrial": "72"
+  }
+]
