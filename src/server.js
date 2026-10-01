@@ -14,12 +14,16 @@
  */
 
 const express = require('express');
+const path = require('path');
 const { buildBrief, toPreview } = require('./brief');
 const mx = require('./matrix');
 const rd = require('./radar');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// 服务展示首页（public/index.html）挂在根路径，/health 等路由不受影响
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ---- x402 支付保护（可选启用）---------------------------------
 // 文档: https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/service-seller-sdk
