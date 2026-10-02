@@ -22,6 +22,11 @@ const rd = require('./radar');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// 必须信任反向代理的 X-Forwarded-Proto：Render 终止 TLS 后转发的请求是 http，
+// 不开这个开关 x402 的 402 会报 resource.url 为 http://，
+// 而 Coinbase Bazaar validate 硬性要求 https://，直接拒收。
+app.set('trust proxy', true);
+
 // 服务展示首页（public/index.html）挂在根路径，/health 等路由不受影响
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
