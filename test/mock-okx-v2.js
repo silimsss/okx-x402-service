@@ -117,4 +117,7 @@ http.createServer((req, res) => {
   } else {
     res.statusCode = 404; res.end('{}');
   }
-}).listen(4312, () => console.log('mock OKX v2 on :4312'));
+// 注意：不要读 PORT —— npm 会把自己的 IPC 端口注入 PORT，导致 mock 被劫持到随机端口
+}).listen(process.env.MOCK_OKX_PORT || 4312, function () {
+  console.log(`mock OKX v2 on :${this.address().port}`);
+});

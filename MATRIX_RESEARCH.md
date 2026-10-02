@@ -92,3 +92,107 @@
 3. 上架后主动接 1~2 个免费匹配任务刷首条好评（评分驱动广场排名）
 4. 不碰：自成交刷单（烧钱+封号风险）、低价内卷
 5. 观察指标：BTC 简报类任务重复出现 = 快报 Pro 需求验证信号
+
+## 六、币安生态调研（2026-10-01）
+
+**Agent OS 全家桶**（2026-08-20 上线）：MCP Server + 交易 API + Skills Hub + Agentic Wallet + x402 支付（B402，BNB Chain）
+
+**两条变现路径，性质完全不同**：
+1. Skills Hub（github.com/binance/binance-skills-hub）：接受第三方 PR 贡献，但技能 = 免费 SKILL.md 文件，**无收费机制** → 不是变现渠道，是获客渠道
+2. B402 卖家侧（developers.binance.com → onchainpay-x402）：明确的 Seller 角色，HTTP 402 按次收费，USDT/USDC/USD1/U 直接到卖家地址（BSC），gas 由 B402 赞助，**无需注册审核**；B402 Bazaar = 付费端点公开目录，settle 时带 extensions.bazaar 元数据即自动收录（~30s）
+
+**B402 Bazaar 现状（实测拉取全部 25 个端点）**：
+- Nansen（聪明钱净流+地址画像）、CoinMarketCap（行情/DEX 搜索）已进场
+- 独立开发者真实存在（vercel.app 托管的经济日历、ChainHelix 一人公司 8 个端点，含 $4/7天 订阅形态）
+- 类目：预测市场概率、宏观日历、MEV、LLM 推理/图片/TTS、跨链报价、代币情报
+- 无 OKX 永续衍生品数据类玩家（资金费率/持仓/爆仓雷达在币安系仍空白）
+- 注意：Nansen 已占"smart money netflow"关键词
+
+**与 OKX.AI 的对比**：B402 无身份/评分/任务大厅/审核，纯协议级收款；OKX.AI 有广场流量+信誉体系+Builder 返佣。B402 结算需卖家自备 BSC 可控钱包（现有 Agentic Wallet 密钥 TEE 托管不可导出，收款地址需新建）
+
+**结论**：币安值得做，但定位 = 同一产品的第二结算通道，不是第二主战场。时机 = OKX.AI 首笔真实收入后。
+
+## 七、B402 链上收益求证（2026-10-01，Blockscout 实测）
+
+**方法**：402 探测拿到收款地址 → Blockscout API 拉全部 ERC-20 转账 →
+过滤 method 0xe3ee160e（EIP-3009 授权转账 = x402 结算特征）
+
+| 卖家 | 定价 | 链上实测 | 日均 | 折算 |
+|---|---|---|---|---|
+| macropulse（宏观日历，独立开发者，vercel 免费档） | $0.01 | 200 笔 / $12.45（9.23–10.01，9 天） | ~22 笔 | **~$1.4/天 ≈ $40/月** |
+| Nansen（聪明钱数据，企业） | $0.05+ | 236+ 笔 / $470+（9.29–10.01，3 天） | ~80 笔 | **~$150/天**（且加速中） |
+| hyreagent（BSC/USD1，币安 B402 侧唯一可查卖家） | $0.01 | 111 笔总交易，最后转出 85 天前，余额 $0.08 | ≈0 | **≈ $0** |
+
+**关键洞察**：
+1. x402 销量**完全可链上求证**（method 0xe3ee160e 是铁证），本项目 methodology 可复用
+2. 真实付费需求存在且在加速（Nansen 10/1 凌晨已完成 39 笔，全天 pace ~180 笔）
+3. 金额分布：$0.01×64 / $0.05×19 / $0.1-1×17 / 更大额若干 → 微支付为主
+4. **当前主力在 Base/Coinbase 生态，币安 B402（BSC）侧几乎零销量**——但 Bazaar 目录跨链收录（macropulse 挂在币安 Bazaar 却走 Base 结算），早挂早占位
+5. B402 卖家零 gas 成本（币安赞助），收款钱包可以完全冷（不需注资）
+
+**决策**：用户拍板现在就做。接入形态 = 现有 9 服务同一端点增加 BSC 结算通道 + B402 Bazaar 收录。前置条件仅 1 项：用户新建一个 BSC 收款钱包（只给地址，私钥绝不进聊天）。
+
+## 八、多链结算落地（2026-10-02）
+
+### 8.1 结论先行：先做 Base，BSC 缓
+
+| 通道 | 状态 | 接入成本 |
+|---|---|---|
+| X Layer（`eip155:196`, USD₮0） | **已上线**，走 OKXFacilitatorClient | 已有 OKX API Key |
+| Base（`eip155:8453`, USDC） | **代码已完成，待填 CDP Key** | 免费注册 CDP 拿 API Key |
+| BSC（`eip155:56`, USD1） | 缓 | `/papi/v2/b402/verify\|settle` 是商户申请制（clientId + RSA + IP 白名单） |
+
+理由：§7 已证真实付费流量集中在 Base；BSC 侧实测销量≈0 且拿不到商户资格。
+
+### 8.2 SDK 机制逆向（@okxweb3/x402-core v0.1）
+
+1. **一个 resource server 可挂多个 facilitator**：`new x402ResourceServer([okxFacilitator, cdpFacilitator])`，
+   启动时逐个 `getSupported()` 建立 `network+scheme -> facilitator` 映射，前面的优先级更高。
+2. **路由级 `accepts` 是数组** = 原生多链。一条路由配两个 `accepts`（不同 `network`/`asset`/`payTo`），
+   402 的 `PAYMENT-REQUIRED` 头里就会同时列出两条链，买家任选其一。
+3. **同一个 EVM 地址在两条链通用** → `0xe716…03f8` 同时收 X Layer 的 USD₮0 和 Base 的 USDC，不需要新钱包。
+4. **坑：`ExactEvmScheme` 的默认资产表只认 X Layer**。`DEFAULT_STABLECOINS` 里只有
+   `eip155:196` 和 `eip155:1952`，Base 走 `"$0.05"` 字符串会抛
+   `No default asset configured for network eip155:8453`。
+   解法：`parsePrice` 支持直接给 AssetAmount 对象，所以 Base 的 `price` 必须写成
+   `{amount:"50000", asset:"0x833589fCD6…", extra:{name:"USDC",version:"2"}}`。
+5. **坑：`paymentMiddleware()` 的初始化是惰性的**，失败会变成未捕获拒绝直接打死进程。
+   改为显式 `await new x402HTTPResourceServer(rs, routes).initialize()`（带超时），
+   失败则只让付费路由返 503，`/health` 仍可观测。
+6. **Express 注册顺序**：中间件必须先于业务路由注册。异步装配要先把
+   `express.Router()` 占位挂到最前面，再往里 `use()`。
+7. **CDP 鉴权**：`HTTPFacilitatorClient({createAuthHeaders})` 的回调**不收参数**，但返回值
+   必须是 `{verify, settle, supported}` 三键对象（SDK 内部用 path 去取）。CDP 要求每个端点
+   签一个 `uris:["METHOD host/path"]` 绑定的 ES256/EdDSA JWT（`src/cdp-auth.js` 自实现，
+   对齐 @coinbase/cdp-sdk 的 jwt.ts，零额外依赖）。
+8. **CDP 需要 API Key**：实测 `/platform/v2/x402/supported` 无鉴权返回 `401 Unauthorized`
+   （`docs.cdp.coinbase.com/x402/seller/facilitator` 也写明用 key id + secret）。
+   费用：每月前 1000 笔链上交易免费，超出 $0.001/笔。
+
+### 8.3 实测产物
+
+402 响应头（双通道实际内容，`PAYMENT-REQUIRED` base64 解出来）：
+
+```json
+{ "x402Version": 2, "accepts": [
+  { "scheme":"exact","network":"eip155:196","amount":"50000",
+    "asset":"0x779ded0c9e1022225f8e0630b35a9b54be713736","payTo":"0xe716…03f8",
+    "extra":{"name":"USD₮0","version":"1"} },
+  { "scheme":"exact","network":"eip155:8453","amount":"50000",
+    "asset":"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913","payTo":"0xe716…03f8",
+    "extra":{"name":"USDC","version":"2"} } ] }
+```
+
+注意：x402 **v2 把 requirements 放在 `PAYMENT-REQUIRED` 响应头，body 是空 `{}`**；
+§7 的“402 响应体里 accepts[0]”实际也应从该头解析。
+
+离线回归 `test/smoke-multichain.sh`（5 模式 / 21 断言，全程 mock facilitator）：
+仅 OKX / CDP 不可达降级 / 双通道正常 / facilitator 全挂（进程存活 + 付费 503）/ 开发模式。
+
+### 8.4 待办
+
+- [ ] 用户注册 CDP（portal.cdp.coinbase.com，免费）→ 填 Render 的 `CDP_API_KEY_ID`/`CDP_API_KEY_SECRET`
+- [ ] 用户填 `BASE_PAY_TO`（可先填现有 0xe716…03f8）
+- [ ] Render 构建后 `curl /health` 确认 `channels.eip155:8453: usdc`
+- [ ] 拿到 Base 真实成交后，把服务挂上 **Coinbase Bazaar**（CDP 官方支持，
+      比 B402 Bazaar 有流量）

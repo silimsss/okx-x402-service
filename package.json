@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/smoke.js"
+    "test": "node test/smoke.js && node test/cdp-auth.test.js && bash test/smoke-multichain.sh",
+    "test:auth": "node test/cdp-auth.test.js",
+    "test:multichain": "bash test/smoke-multichain.sh"
   },
   "keywords": [
     "x402",

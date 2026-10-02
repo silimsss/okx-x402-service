@@ -25,121 +25,138 @@ const PORT = process.env.PORT || 4000;
 // 服务展示首页（public/index.html）挂在根路径，/health 等路由不受影响
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// ---- x402 支付保护（可选启用）---------------------------------
+// 支付中间件容器。必须先于所有业务路由注册（Express 按注册顺序匹配），
+// 因此先在顶层占位，initX402() 里再异步往里装配内容。
+const paymentRouter = express.Router();
+app.use(paymentRouter);
+
+// ---- x402 支付保护（可选启用，多链结算）-------------------------
 // 文档: https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/service-seller-sdk
 // 启用条件: .env 中配置 X402_NETWORK / PAY_TO_ADDRESS / OKX_API_KEY
+// 多链: BASE_PAY_TO 配置后，自动追加 Base(eip155:8453)/USDC 通道（CDP facilitator，
+//       启动时探测，失败自动停用且不影响 OKX 通道）；BSC 见 multichain.js 占位
+const mc = require('./multichain');
 const x402Enabled = !!process.env.OKX_API_KEY;
 // PAY_TO_ADDRESS 缺省回落到 Agentic Wallet 收款地址
 process.env.PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0xe716aac67216948dad46fa4d610cc297e13d03f8';
+let baseActive = false; // 运行时反映 Base 通道状态（health 展示用）
+let x402State = 'off'; // off | ok | error
+const X402_INIT_TIMEOUT_MS = Number(process.env.X402_INIT_TIMEOUT_MS || 20000);
 
-let paymentMiddleware = null;
-if (x402Enabled) {
+function buildRoutes() {
+  const N = process.env.X402_NETWORK || 'eip155:196';
+  const acc = (price) => ({ scheme: 'exact', network: N, payTo: process.env.PAY_TO_ADDRESS, price });
+  return {
+    'GET /v1/brief/:instId': {
+      accepts: [acc(process.env.PRICE || '$0.05')],
+      description: 'Crypto Market Brief (RSI/trend/key levels, JSON+Markdown)',
+      mimeType: 'application/json',
+    },
+    'GET /v1/sentiment': {
+      accepts: [acc('$0.02')],
+      description: 'Fear & Greed sentiment dashboard (7d history + analysis)',
+      mimeType: 'application/json',
+    },
+    'GET /v1/funding': {
+      accepts: [acc('$0.03')],
+      description: 'OKX funding rate radar (full scan, top lists, annualized)',
+      mimeType: 'application/json',
+    },
+    'GET /v1/funding/:instId': {
+      accepts: [acc('$0.02')],
+      description: 'Single-instrument funding rate detail',
+      mimeType: 'application/json',
+    },
+    'GET /v1/combo/:instId': {
+      accepts: [acc('$0.08')],
+      description: 'Combo: sentiment + funding + spot context for one pair',
+      mimeType: 'application/json',
+    },
+    'GET /v1/smartmoney': {
+      accepts: [acc('$0.03')],
+      description: 'Smart-money positioning radar (top-trader vs retail long/short divergence)',
+      mimeType: 'application/json',
+    },
+    'GET /v1/liquidation': {
+      accepts: [acc('$0.02')],
+      description: 'OKX perpetual liquidation radar (24h long/short squeeze stats)',
+      mimeType: 'application/json',
+    },
+    'GET /v1/openinterest': {
+      accepts: [acc('$0.02')],
+      description: 'Open-interest monitor (market OI ranking + surge alerts)',
+      mimeType: 'application/json',
+    },
+  };
+}
+
+async function initX402() {
+  if (!x402Enabled) {
+    console.log('[x402] 未配置 OKX_API_KEY，以开发模式运行（付费接口放行）');
+    return;
+  }
   try {
     // npm i @okxweb3/x402-express @okxweb3/x402-core @okxweb3/x402-evm
-    const { paymentMiddleware: pm, x402ResourceServer } = require('@okxweb3/x402-express');
+    const { paymentMiddlewareFromHTTPServer, x402HTTPResourceServer, x402ResourceServer } = require('@okxweb3/x402-express');
     const { ExactEvmScheme } = require('@okxweb3/x402-evm/exact/server');
     const { OKXFacilitatorClient } = require('@okxweb3/x402-core');
 
-    const facilitator = new OKXFacilitatorClient({
+    const facilitators = [new OKXFacilitatorClient({
+      baseUrl: process.env.OKX_FACILITATOR_URL || 'https://web3.okx.com', // 可指向 mock，仅本地测试用
       apiKey: process.env.OKX_API_KEY,
       secretKey: process.env.OKX_SECRET_KEY,
       passphrase: process.env.OKX_PASSPHRASE,
-    });
-    const resourceServer = new x402ResourceServer(facilitator);
+    })];
+    const resourceServer = new x402ResourceServer(facilitators);
     resourceServer.register(process.env.X402_NETWORK || 'eip155:196', new ExactEvmScheme());
 
-    paymentMiddleware = pm(
-      {
-        'GET /v1/brief/:instId': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: process.env.PRICE || '$0.05',
-          }],
-          description: 'Crypto Market Brief (RSI/trend/key levels, JSON+Markdown)',
-          mimeType: 'application/json',
-        },
-        'GET /v1/sentiment': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: '$0.02',
-          }],
-          description: 'Fear & Greed sentiment dashboard (7d history + analysis)',
-          mimeType: 'application/json',
-        },
-        'GET /v1/funding': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: '$0.03',
-          }],
-          description: 'OKX funding rate radar (full scan, top lists, annualized)',
-          mimeType: 'application/json',
-        },
-        'GET /v1/funding/:instId': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: '$0.02',
-          }],
-          description: 'Single-instrument funding rate detail',
-          mimeType: 'application/json',
-        },
-        'GET /v1/combo/:instId': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: '$0.08',
-          }],
-          description: 'Combo: sentiment + funding + spot context for one pair',
-          mimeType: 'application/json',
-        },
-        'GET /v1/smartmoney': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: '$0.03',
-          }],
-          description: 'Smart-money positioning radar (top-trader vs retail long/short divergence)',
-          mimeType: 'application/json',
-        },
-        'GET /v1/liquidation': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: '$0.02',
-          }],
-          description: 'OKX perpetual liquidation radar (24h long/short squeeze stats)',
-          mimeType: 'application/json',
-        },
-        'GET /v1/openinterest': {
-          accepts: [{
-            scheme: 'exact',
-            network: process.env.X402_NETWORK || 'eip155:196',
-            payTo: process.env.PAY_TO_ADDRESS,
-            price: '$0.02',
-          }],
-          description: 'Open-interest monitor (market OI ranking + surge alerts)',
-          mimeType: 'application/json',
-        },
-      },
-      resourceServer,
-    );
-    app.use(paymentMiddleware);
-    console.log('[x402] 支付保护已启用 ->', process.env.PAY_TO_ADDRESS);
+    const routes = buildRoutes();
+
+    // Base 通道：显式开关(BASE_PAY_TO) + facilitator 探测通过才启用；失败不影响 OKX 通道
+    if (mc.baseEnabled()) {
+      const baseFacilitator = mc.buildBaseFacilitator();
+      const ok = baseFacilitator ? await mc.baseSupported().catch(() => false) : false;
+      if (ok) {
+        facilitators.push(baseFacilitator);
+        resourceServer.register(mc.NETWORKS.BASE, new ExactEvmScheme());
+        mc.augmentRoutesWithBase(routes);
+        console.log('[multichain] Base 通道已加入路由 (eip155:8453 USDC) ->', process.env.BASE_PAY_TO);
+      } else {
+        console.warn('[multichain] CDP facilitator 探测未通过，Base 通道本次启动停用（OKX 通道不受影响）');
+      }
+    }
+
+    // 显式预初始化：拉取各 facilitator 的 supported kinds + 校验路由配置。
+    // 不用 paymentMiddleware() 的惰性初始化，因为初始化失败会变成未捕获拒绝直接把进程打死，
+    // 而我们希望「启动失败可观测 + 付费接口不放行」。
+    const httpServer = new x402HTTPResourceServer(resourceServer, routes);
+    await mc.withTimeout(httpServer.initialize(), X402_INIT_TIMEOUT_MS, 'x402 initialize');
+
+    // 已手动 initialize 完成 -> syncFacilitatorOnStart=false，避免每个进程重复打 facilitator
+    paymentRouter.use(paymentMiddlewareFromHTTPServer(httpServer, undefined, undefined, false));
+    baseActive = routesAcceptBase(routes);
+    x402State = 'ok';
+    console.log('[x402] 支付保护已启用 ->', process.env.PAY_TO_ADDRESS,
+      '| routes:', Object.keys(routes).length, '| base:', baseActive ? 'on' : 'off');
   } catch (err) {
-    console.error('[x402] SDK 未安装或初始化失败，退回开发模式:', err.message);
+    x402State = 'error';
+    // 不放行付费数据，也不让进程崩溃：付费路由统一 503，/health 可观测
+    console.error('[x402] 初始化失败，付费接口一律 503（不放行）:', err.message);
+    const FREE_V1 = [
+      /^\/v1\/preview\/[^/]+$/, /^\/v1\/sentiment\/preview$/,
+      /^\/v1\/funding\/preview$/, /^\/v1\/combo\/preview\/[^/]+$/,
+    ];
+    paymentRouter.use((req, res, next) => {
+      if (!req.path.startsWith('/v1')) return next();
+      if (FREE_V1.some((re) => re.test(req.path))) return next();
+      return res.status(503).json({ error: 'x402_unavailable', message: 'payment gateway not ready' });
+    });
   }
-} else {
-  console.log('[x402] 未配置 OKX_API_KEY，以开发模式运行（付费接口放行）');
+}
+
+/** 路由里是否已经带上了 Base 支付选项 */
+function routesAcceptBase(routes) {
+  return Object.values(routes).some((c) => c.accepts.some((a) => a.network === mc.NETWORKS.BASE));
 }
 
 const devMode = (req, res, next) => {
@@ -152,7 +169,12 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'crypto-market-pulse',
-    x402: x402Enabled ? 'enabled' : 'dev-mode',
+    x402: !x402Enabled ? 'dev-mode' : (x402State === 'ok' ? 'enabled' : x402State),
+    channels: {
+      'eip155:196': x402State === 'ok' ? 'usdt0' : 'off',
+      'eip155:8453': baseActive ? 'usdc' : 'off',
+      'eip155:56': 'pending-merchant-onboarding',
+    },
     endpoints: [
       '/v1/preview/:instId (free)', '/v1/brief/:instId (x402 $0.05)',
       '/v1/sentiment/preview | /public/sentiment (free)', '/v1/sentiment (x402 $0.02)',
@@ -265,9 +287,13 @@ app.get('/v1/combo/:instId', devMode, async (req, res) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`[server] Crypto Market Pulse listening at http://localhost:${PORT}`);
-  });
+  (async () => {
+    await initX402(); // 先完成支付中间件装配（含 Base 通道探测），再监听端口
+    app.listen(PORT, () => {
+      console.log(`[server] Crypto Market Pulse listening at http://localhost:${PORT}`);
+    });
+  })();
 }
 
 module.exports = app;
+module.exports.initX402 = initX402;
