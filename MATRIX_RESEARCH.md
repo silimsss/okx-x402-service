@@ -259,7 +259,34 @@ extensions.bazaar.info.input: { type: "http", method: "GET" }   + output.example
 **Coinbase validate：8/8 端点全部 `outcome: accepted`、零失败项**（`npm run check:live` 可随时复验）。
 官方说“任意一个买家成功付过一次款后自动索引，无需任何申请”，因此服务已具备上架条件。
 
-### 8.6 剩下的风险与待办
+### 8.6 币安侧复查（2026-10-02，与 OKX 任务大厅对比）
+
+**结论：币安没有 OKX 那种「任务大厅」，一个都没有。**
+
+| | OKX.AI | 币安 Agent OS |
+|---|---|---|
+| 任务大厅（买方发需求 / 卖方接单） | 有，总成交 $9,676 / 82,651 任务 / 277 进行中 | **无** |
+| 服务广场（主动挂服务等买家） | 有，7 大类目约 60 个服务 | **无** |
+| 目录（被动被发现） | 无公开目录 API | B402 Bazaar：**25 个端点，一个月零增长** |
+| 结算通道 | X Layer（已上） | B402/BSC（需申请，见下） |
+| 提交代码换流量 | 无 | Skill Hub（GitHub PR，**只收免费 SKILL.md，无收费机制**） |
+
+**复查纠正了上一版的一个判断**：B402 的 API Key 申请**不是商务审批**，币安 x402 页面上的
+`Apply for API Key` 按钮直接指向一个公开 Google 表单
+（`docs.google.com/forms/d/e/1FAIpQLScUfaXvaKB4u…/viewform`），自助填表即可。
+上一版写的“contact us for access / clientId+RSA+IP 白名单”门槛判断过高。
+
+**新增风险**：B402 目录里所有条目的 `accepts[].scheme` 都是 **`eip3009`**，
+而我们用的是 x402 v2 标准的 **`exact`**。申请时需确认 B402 是否接受 `exact`，
+否则开了 BSC 通道也进不了他们的目录。
+
+**实际收益仍然是零**：`b402/bazaar/resources` 一个月前后都是同25 个端点；
+其中唯一可查的 B402 卖家 hyreagent，111 笔总交易、85 天前停、余额 $0.08。
+
+**决策**：BSC 通道可以去申请（自助、零成本、代码已就绪，`BSC_PAY_TO` + facilitator 一接就行），
+但优先级低——它带来的是“多一条链”的可能性，不是流量。流量在 Coinbase Bazaar（已打通）。
+
+### 8.7 剩下的风险与待办
 
 - [ ] **确认 `0xe716…03f8` 在 Base 上能收到并动用 USDC**——地址是 OKX Agentic Wallet 的 EVM 地址，
       同一地址跨链通用，但 Base 网络的 USDC 能否在 OKX 侧看到/提现需实测（首笔成交时验证）
@@ -267,3 +294,4 @@ extensions.bazaar.info.input: { type: "http", method: "GET" }   + output.example
       Render 免费版休眠期达不到，持续失败会被自动下架
 - [ ] 有首笔 Base 成交后确认已被索引；攒够调用量再争取 curation
 - [ ] OKX.AI 广场上架审核（9/30 提交，10/02 仍为 `Listing under review`）
+- [ ] （可选）填 B402 的 Google 表单申请 BSC 通道，顺带确认 `exact` scheme 兼容性
