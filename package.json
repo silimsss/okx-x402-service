@@ -10,7 +10,8 @@
     "test": "node test/smoke.js && node test/cdp-auth.test.js && bash test/smoke-multichain.sh",
     "test:auth": "node test/cdp-auth.test.js",
     "test:multichain": "bash test/smoke-multichain.sh",
-    "validate:bazaar": "node tools/validate-bazaar.js"
+    "validate:bazaar": "node tools/validate-bazaar.js",
+    "check:live": "node tools/postdeploy.js"
   },
   "keywords": [
     "x402",
