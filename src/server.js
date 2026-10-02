@@ -18,6 +18,7 @@ const path = require('path');
 const { buildBrief, toPreview } = require('./brief');
 const mx = require('./matrix');
 const rd = require('./radar');
+const xv = require('./crossvenue');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -91,6 +92,11 @@ function buildRoutes() {
     'GET /v1/openinterest': {
       accepts: [acc('$0.02')],
       description: 'OKX open-interest monitor: market-wide open interest in USD and its 24h change, top-10 contracts by OI, per-coin detail and surge alerts. Use to track leverage build-up and identify sudden positioning shifts.',
+      mimeType: 'application/json',
+    },
+    'GET /v1/crossvenue': {
+      accepts: [acc('$0.04')],
+      description: 'Cross-exchange perpetual funding-rate comparison for one symbol across Binance, OKX, Gate and Bybit simultaneously: each venue raw rate, annualized rate, mark price, plus the cheapest/dearest venue, the spread multiple and the annualized gap in percentage points. Single-exchange skills can only report their own book and will never show this. Use when deciding whether perpetual carry is venue-specific, when a funding rate looks extreme on one exchange but normal across the market, or before assuming a funding signal is a whole-market signal.',
       mimeType: 'application/json',
     },
   };
@@ -191,6 +197,7 @@ app.get('/health', (_req, res) => {
       '/public/smartmoney (free)', '/v1/smartmoney (x402 $0.03, ?ccy=BTC 可选)',
       '/public/liquidation (free)', '/v1/liquidation (x402 $0.02)',
       '/public/openinterest (free)', '/v1/openinterest (x402 $0.02)',
+      '/public/crossvenue (free)', '/v1/crossvenue (x402 $0.04, ?symbol=BTC-USDT-SWAP 可选)',
     ],
   });
 });
@@ -226,6 +233,7 @@ const freeJson = (handler) => async (req, res) => {
 app.get('/public/smartmoney', freeJson(async () => rd.smartPreview(await rd.smartScan(['BTC']))));
 app.get('/public/liquidation', freeJson(async () => rd.liqPreview(await rd.liqScan(['BTC-USDT', 'BTC-USD']))));
 app.get('/public/openinterest', freeJson(async () => rd.oiPreview(await rd.oiScan())));
+app.get('/public/crossvenue', freeJson(async (req) => xv.crossVenuePreview(await xv.crossVenue(req.query.symbol))));
 
 app.get('/v1/smartmoney', devMode, async (req, res) => {
   try {
@@ -249,6 +257,17 @@ app.get('/v1/openinterest', devMode, async (req, res) => {
   try {
     const data = await rd.oiScan();
     const report = rd.oiReport(data);
+    res.json(req.devMode ? { ...data, report, _devMode: true } : { ...data, report });
+  } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
+});
+
+// ---- 跨交易所对比：Binance / OKX / Gate / Bybit 同刻对比 --------------
+// 差异化能力：单一交易所只能报自家费率，跨所价差结构上只有第三方能给。
+
+app.get('/v1/crossvenue', devMode, async (req, res) => {
+  try {
+    const data = await xv.crossVenue(req.query.symbol);
+    const report = xv.crossVenueReport(data);
     res.json(req.devMode ? { ...data, report, _devMode: true } : { ...data, report });
   } catch (err) { res.status(502).json({ error: 'upstream_error', message: err.message }); }
 });

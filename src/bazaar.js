@@ -102,6 +102,18 @@ const CCY_SCHEMA = {
   additionalProperties: false,
 };
 
+const SYMBOL_SCHEMA = {
+  type: 'object',
+  properties: {
+    symbol: {
+      type: 'string',
+      description: '要对比的永续合约，缺省 BTC-USDT-SWAP。兼容 BTC-USDT-SWAP / BTCUSDT / BTC_USDT 等常见写法',
+      examples: ['BTC-USDT-SWAP', 'BTCUSDT', 'ETH-USDT-SWAP'],
+    },
+  },
+  additionalProperties: false,
+};
+
 const DISCLAIMER = {
   type: 'string',
   description: '免责声明：本接口为自动生成的市场信息，不构成投资建议',
@@ -289,6 +301,45 @@ const ROUTE_META = {
         top10: [{ instId: 'BTC-USDT-SWAP', oiUsd: 8200000000, change24hPct: 4.1 }],
         alerts: ['BTC-USDT-SWAP 持仓 24h 增长 8.4%'],
         summary: '持仓扩张中，资金持续流入', report: '# OKX 持仓量监控\n…',
+      },
+    },
+  },
+
+  'GET /v1/crossvenue': {
+    method: 'GET',
+    input: { symbol: 'BTC-USDT-SWAP' },
+    inputSchema: SYMBOL_SCHEMA,
+    output: {
+      schema: {
+        properties: {
+          asOf: { type: 'string' },
+          symbol: { type: 'string' },
+          venues: { type: 'array', items: { type: 'object' } },
+          summary: {
+            type: 'object',
+            properties: {
+              okCount: { type: 'number' }, totalCount: { type: 'number' },
+              referenceVenue: { type: 'string', description: "'okx' 表示以 OKX 为基准，'mean' 表示 OKX 取数失败已退化为四所均值" },
+              cheapest: { type: 'string' }, dearest: { type: 'string' },
+              ratioAbs: { type: 'number', description: '最贵与最便宜所的费率倍数差（按绝对值计算）' },
+              annualizedGapPct: { type: 'number', description: '两者年化费率相差的百分点' },
+            },
+          },
+          caveat: { type: 'string' },
+          report: { type: 'string' },
+        },
+      },
+      example: {
+        asOf: '2026-10-02T02:20:39.076Z', symbol: 'BTC-USDT',
+        venues: [
+          { venue: 'okx', label: 'OKX', ok: true, fundingRate: 0.0000167, annualizedPct: 1.83, markPrice: 86081 },
+          { venue: 'binance', label: 'Binance', ok: true, fundingRate: 0.0001, annualizedPct: 10.95, markPrice: 86081.2 },
+          { venue: 'gate', label: 'Gate', ok: true, fundingRate: 0.000014, annualizedPct: 1.53, markPrice: 86075 },
+          { venue: 'bybit', label: 'Bybit', ok: true, fundingRate: 0.00005, annualizedPct: 5.48, markPrice: 86077.1 },
+        ],
+        summary: { okCount: 4, totalCount: 4, referenceVenue: 'okx', cheapest: 'Gate', dearest: 'Binance', ratioAbs: 7.1, annualizedGapPct: 9.42 },
+        caveat: '年化为按每 8 小时一次的等比换算，仅用于横向比较。',
+        report: '# 跨交易所资金费率对比 · BTC-USDT\n…',
       },
     },
   },

@@ -7,8 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/smoke.js && node test/cdp-auth.test.js && bash test/smoke-multichain.sh",
+    "test": "node test/smoke.js && node test/cdp-auth.test.js && node test/crossvenue.test.js && bash test/smoke-multichain.sh",
     "test:auth": "node test/cdp-auth.test.js",
+    "test:crossvenue": "node test/crossvenue.test.js",
     "test:multichain": "bash test/smoke-multichain.sh",
     "validate:bazaar": "node tools/validate-bazaar.js",
     "check:live": "node tools/postdeploy.js"
