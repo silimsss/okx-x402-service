@@ -36,6 +36,7 @@ app.use(paymentRouter);
 // 多链: BASE_PAY_TO 配置后，自动追加 Base(eip155:8453)/USDC 通道（CDP facilitator，
 //       启动时探测，失败自动停用且不影响 OKX 通道）；BSC 见 multichain.js 占位
 const mc = require('./multichain');
+const bz = require('./bazaar');
 const x402Enabled = !!process.env.OKX_API_KEY;
 // PAY_TO_ADDRESS 缺省回落到 Agentic Wallet 收款地址
 process.env.PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0xe716aac67216948dad46fa4d610cc297e13d03f8';
@@ -49,42 +50,42 @@ function buildRoutes() {
   return {
     'GET /v1/brief/:instId': {
       accepts: [acc(process.env.PRICE || '$0.05')],
-      description: 'Crypto Market Brief (RSI/trend/key levels, JSON+Markdown)',
+      description: 'Full technical brief for one OKX USDT pair: price, 24h/7d/30d change, RSI(14), trend, 20-day support & resistance, annualized volatility, plus a Chinese Markdown report. Use when a trading or research agent needs deterministic market context before deciding to act.',
       mimeType: 'application/json',
     },
     'GET /v1/sentiment': {
       accepts: [acc('$0.02')],
-      description: 'Fear & Greed sentiment dashboard (7d history + analysis)',
+      description: 'Crypto Fear & Greed index dashboard: current reading, yesterday, week-ago, 7-day series and 7-day stats, with a Chinese interpretation. Use as a market-regime input when judging whether the crowd is euphoric or fearful.',
       mimeType: 'application/json',
     },
     'GET /v1/funding': {
       accepts: [acc('$0.03')],
-      description: 'OKX funding rate radar (full scan, top lists, annualized)',
+      description: 'Full OKX perpetual funding-rate scan: every listed swap with rate, annualized percentage and 24h volume, plus a summary (average, positive/negative counts, most-extreme contracts) and a Chinese Markdown leaderboard. Use to detect crowded leveraged positioning across the exchange.',
       mimeType: 'application/json',
     },
     'GET /v1/funding/:instId': {
       accepts: [acc('$0.02')],
-      description: 'Single-instrument funding rate detail',
+      description: 'Funding-rate detail for a single OKX USDT pair (accepts BTC-USDT or BTC-USDT-SWAP). Use when you only care about one market instead of the whole exchange.',
       mimeType: 'application/json',
     },
     'GET /v1/combo/:instId': {
       accepts: [acc('$0.08')],
-      description: 'Combo: sentiment + funding + spot context for one pair',
+      description: 'One-call bundle for a single pair: spot price, 24h change, 24h volume, Fear & Greed reading, funding rate and technical context in a single request. Use instead of calling /v1/brief, /v1/sentiment and /v1/funding separately when you need everything about one pair.',
       mimeType: 'application/json',
     },
     'GET /v1/smartmoney': {
       accepts: [acc('$0.03')],
-      description: 'Smart-money positioning radar (top-trader vs retail long/short divergence)',
+      description: 'Smart-money positioning radar from OKX rubik data: top-trader vs top-account vs retail long/short ratios per coin, so agents can spot divergence between informed flow and the crowd. Supports ?ccy=BTC,ETH to restrict the scan.',
       mimeType: 'application/json',
     },
     'GET /v1/liquidation': {
       accepts: [acc('$0.02')],
-      description: 'OKX perpetual liquidation radar (24h long/short squeeze stats)',
+      description: 'OKX perpetual liquidation radar for the last 24 hours: long vs short liquidated notional, per-instrument breakdown, largest individual liquidations and a squeeze verdict. Use to detect forced-selling cascades and squeeze risk.',
       mimeType: 'application/json',
     },
     'GET /v1/openinterest': {
       accepts: [acc('$0.02')],
-      description: 'Open-interest monitor (market OI ranking + surge alerts)',
+      description: 'OKX open-interest monitor: market-wide open interest in USD and its 24h change, top-10 contracts by OI, per-coin detail and surge alerts. Use to track leverage build-up and identify sudden positioning shifts.',
       mimeType: 'application/json',
     },
   };
@@ -110,7 +111,7 @@ async function initX402() {
     const resourceServer = new x402ResourceServer(facilitators);
     resourceServer.register(process.env.X402_NETWORK || 'eip155:196', new ExactEvmScheme());
 
-    const routes = buildRoutes();
+    const routes = bz.attachBazaarExtensions(buildRoutes());
 
     // Base 通道：显式开关(BASE_PAY_TO) + facilitator 探测通过才启用；失败不影响 OKX 通道
     if (mc.baseEnabled()) {

@@ -100,8 +100,11 @@ function toTokenAmount(price) {
 
 /**
  * 追加路由级多链支付选项到 x402 路由配置。
- * OKX 通道的 accepts 保持第一项（兼容现有广场买家），Base 作为附加选项追加；
- * 两链同价。
+ *
+ * Base 插到 accepts[0]（而不是末尾）：Coinbase Bazaar 的 validate 只检查
+ * accepts[0]，且 CDP facilitator 只支持 Base/Solana/Polygon/Arbitrum/World，
+ * 不支持 X Layer——Base 排首位才能被收录。X Layer 紧随其后，买家钱包不支持
+ * Base 时仍能付款。两链同价。
  *
  * 注意：Base 的 price 必须直接给 AssetAmount（{amount,asset,extra}），不能沿用
  * "$0.05" 字符串——因为 SDK 的 ExactEvmScheme 内置默认资产表只有 X Layer/OKX，
@@ -120,7 +123,7 @@ function augmentRoutesWithBase(routes) {
     const amount = typeof first.price === 'object' && first.price
       ? String(first.price.amount)
       : toTokenAmount(first.price);
-    cfg.accepts.push({
+    cfg.accepts.unshift({
       scheme: 'exact',
       network: NETWORKS.BASE,
       payTo: process.env.BASE_PAY_TO,

@@ -189,10 +189,59 @@
 离线回归 `test/smoke-multichain.sh`（5 模式 / 21 断言，全程 mock facilitator）：
 仅 OKX / CDP 不可达降级 / 双通道正常 / facilitator 全挂（进程存活 + 付费 503）/ 开发模式。
 
-### 8.4 待办
+### 8.4 Coinbase x402 Bazaar（重要，优先级高于 B402）
+
+官方文档：`docs.cdp.coinbase.com/x402/buyer/discover-services`、`/x402/seller/get-discovered`
+
+| 维度 | Coinbase Bazaar | 币安 B402 Bazaar |
+|---|---|---|
+| 目录规模 | **23,000+ 资源** | 25 个端点 |
+| 收录方式 | 路由在 402 里带 `extensions.bazaar`，买家付一次款后自动索引 | settle 时带 `extensions.bazaar` |
+| 申请/注册 | 不需要，全自动 | 不需要 |
+| 分发面 | CDP API、**Bazaar MCP**、Amazon Bedrock AgentCore、**agentic.market** 网站 | 币安 App 内 |
+| 排序依据 | 30 天滚动：真实调用量 + 独立支付方数 + 描述/output schema 完整度 | 未公开 |
+| 费用 | 前 1000 笔链上交易/月免费，超出 $0.001/笔 | 币安赞助 |
+
+**关键结论：只用 X Layer 永远进不了 Coinbase Bazaar。** 用免鉴权 validate 端点实测
+`POST https://api.cdp.coinbase.com/platform/v2/x402/validate`（无需 API Key）：
+
+```
+✘ accepts[0].network  eip155:196 → "not supported"
+     expected: a facilitator-supported network (Base, Solana, Polygon, Arbitrum, World)
+✘ accepts[0].asset    0x779ded0c… → "is not USDC"
+✘ has_bazaar_extension → "No bazaar extension in top-level extensions object"
+simulation: { outcome: "rejected", rejectionReason: "no bazaar discovery extension found" }
+```
+
+即 **Base 通道不是可选项，而是打开 23,000 资源市场的唯一钥匙**；且 validate 只看
+`accepts[0]`，所以 Base 必须排在首位（X Layer 排第二，买家钱包不支持时仍能付）。
+
+**Bazaar wire 格式**（对齐 `x402-foundation/x402/extensions/bazaar`，零依赖实现于
+`src/bazaar.js`）：
+
+```js
+extensions: { bazaar: {
+  info: { input: { type: 'http', method: 'GET', pathParams: {...}, queryParams: {...} },
+          output: { type: 'json', example: {...} } },
+  schema: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object',
+             properties: { input: {...}, output: {...} }, required: ['input'] },
+}}
+```
+
+**策展（curation）门槛**：主网真实收款 + **30 天可用性 ≥99%**（平台实测，持续失败会自动
+下架）+ 完整输入 schema + “告诉 agent 何时用这个端点”的描述 + 每次定价/支持网络/错误响应。
+
+> ⚠️ **Render 免费版会破坏这条**：免费实例 15 分钟无请求就休眠，冷启动 1–2 分钟，
+> 可用性远达不到 99%，等于进了 Bazaar 也会被判下架。要进 Bazaar 得上常驻实例。
+
+**已落地**：`src/bazaar.js` 声明元数据；`tools/validate-bazaar.js` 批量自检 8 个端点；
+`tools/dump-samples.js` 从 mock 行情抓真实响应作为 `output.example`。
+
+### 8.5 待办
 
 - [ ] 用户注册 CDP（portal.cdp.coinbase.com，免费）→ 填 Render 的 `CDP_API_KEY_ID`/`CDP_API_KEY_SECRET`
 - [ ] 用户填 `BASE_PAY_TO`（可先填现有 0xe716…03f8）
 - [ ] Render 构建后 `curl /health` 确认 `channels.eip155:8453: usdc`
-- [ ] 拿到 Base 真实成交后，把服务挂上 **Coinbase Bazaar**（CDP 官方支持，
-      比 B402 Bazaar 有流量）
+- [ ] 跑 `node tools/validate-bazaar.js` 确认 8 个端点全部 `valid: true`
+- [ ] 换常驻实例（Render Starter / Fly.io）——进 Bazaar 的硬性要求
+- [ ] 有首笔 Base 成交后自动被索引；攒够调用量再争取 curation

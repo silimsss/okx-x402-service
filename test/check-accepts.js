@@ -55,6 +55,7 @@ console.log('  amount :', a.map((x) => `${x.network}=${x.amount}`).join('  '));
 
 const base = a.find((x) => x.network === 'eip155:8453');
 const xlayer = a.find((x) => x.network === 'eip155:196');
+const bz = reqs.extensions && reqs.extensions.bazaar;
 const checks = [
   ['402 同时提供两链', nets.length === 2 && !!base && !!xlayer],
   ['X Layer asset = USD₮0', xlayer && String(xlayer.asset).toLowerCase() === USDT0_XLAYER],
@@ -63,6 +64,11 @@ const checks = [
   ['两链金额一致（同价）', base && xlayer && base.amount === xlayer.amount],
   ['Base extra = {name:USDC, version:2}', base && base.extra && base.extra.name === 'USDC' && base.extra.version === '2'],
   ['两链均为 exact scheme', a.every((x) => x.scheme === 'exact')],
+  ['Base 位于 accepts[0]（Bazaar validate 只看首位）', nets[0] === 'eip155:8453'],
+  ['extensions.bazaar 结构完整（info/schema）', !!(bz && bz.info && bz.info.input && bz.info.input.method === 'GET'
+    && bz.info.input.type === 'http' && bz.schema && bz.schema.$schema && bz.schema.properties
+    && bz.schema.properties.input && bz.schema.properties.input.properties)],
+  ['extensions.bazaar 带 output.example（影响目录排名）', !!(bz && bz.info && bz.info.output && bz.info.output.example)],
 ];
 const badCount = checks.filter(([, v]) => !v).length;
 checks.forEach(([name, v]) => console.log((v ? '  [PASS] ' : '  [FAIL] ') + name));

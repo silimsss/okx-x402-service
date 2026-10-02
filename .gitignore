@@ -4,3 +4,5 @@ server2.log
 mock.log
 *.pid
 .env
+test/.samples.json
+test/.tmp/
