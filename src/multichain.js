@@ -136,22 +136,34 @@ function augmentRoutesWithBase(routes) {
 }
 
 /** 健康探测：确认 CDP facilitator 对 eip155:8453/exact 的支持情况（结果缓存 10 分钟） */
-let supportedCache = { at: 0, ok: null };
+let supportedCache = { at: 0, ok: null, error: null };
 async function baseSupported() {
   const now = Date.now();
   if (supportedCache.ok !== null && now - supportedCache.at < 600_000) return supportedCache.ok;
   try {
     const fac = buildBaseFacilitator();
-    if (!fac) { supportedCache = { at: now, ok: false }; return false; }
+    if (!fac) {
+      supportedCache = { at: now, ok: false, error: '无法构造 Base facilitator 客户端' };
+      return false;
+    }
     const sup = await withTimeout(fac.getSupported(), PROBE_TIMEOUT_MS, 'CDP supported');
     const ok = Array.isArray(sup.kinds) && sup.kinds.some((k) => k.network === NETWORKS.BASE && k.scheme === 'exact');
-    supportedCache = { at: now, ok };
+    supportedCache = {
+      at: now,
+      ok,
+      error: ok ? null : 'CDP facilitator 响应正常但未列出 eip155:8453/exact',
+    };
     return ok;
   } catch (err) {
     console.warn('[multichain] CDP supported 探测失败:', err.message);
-    supportedCache = { at: now, ok: false };
+    supportedCache = { at: now, ok: false, error: err.message };
     return false;
   }
+}
+
+/** 上一次 Base 探测的失败原因（/health 自查用，不含任何密钥） */
+function baseProbeError() {
+  return supportedCache.error || null;
 }
 
 module.exports = {
@@ -162,6 +174,7 @@ module.exports = {
   buildBaseFacilitator,
   toTokenAmount,
   withTimeout,
+  baseProbeError,
   augmentRoutesWithBase,
   baseSupported,
 };

@@ -64,7 +64,7 @@ start_app "$LOG" PORT=$APP_PORT "$MKT" OKX_API_KEY=k OKX_SECRET_KEY=s OKX_PASSPH
 H=$(wait_health 10)
 echo "模式1 仅 OKX 通道"
 [ "$(jget "$H" x402)" = "enabled" ] && ok "x402=enabled" || bad "x402=$(jget "$H" x402)"
-[ "$(jget "$H" 'channels.eip155:8453')" = "off" ] && ok "8453=off" || bad "8453=$(jget "$H" 'channels.eip155:8453')"
+[ "$(jget "$H" 'channels.eip155:8453')" = "off:not-configured" ] && ok "8453=off:not-configured" || bad "8453=$(jget "$H" 'channels.eip155:8453')"
 C=$(code "$BASE/v1/brief/BTC-USDT"); [ "$C" = "402" ] && ok "/v1/brief=402" || bad "/v1/brief=$C"
 curl -s -m 6 -D "$H402" -o "$J402" "$BASE/v1/brief/BTC-USDT"
 N=$(ACCEPTS_COUNT_ONLY=1 node test/check-accepts.js "$J402" "$H402" "")
@@ -80,7 +80,8 @@ start_app "$LOG" PORT=$APP_PORT "$MKT" OKX_API_KEY=k OKX_SECRET_KEY=s OKX_PASSPH
 H=$(wait_health 20)
 echo "模式2 Base 开关开 / CDP 不可达（应降级）"
 [ "$(jget "$H" x402)" = "enabled" ] && ok "OKX 通道未受影响 x402=enabled" || bad "x402=$(jget "$H" x402)"
-[ "$(jget "$H" 'channels.eip155:8453')" = "off" ] && ok "8453=off" || bad "8453=$(jget "$H" 'channels.eip155:8453')"
+[ "$(jget "$H" 'channels.eip155:8453')" = "off:probe-failed" ] && ok "8453=off:probe-failed" || bad "8453=$(jget "$H" 'channels.eip155:8453')"
+[ -n "$(jget "$H" baseProbeError)" ] && ok "health 暴露失败原因" || bad "缺 baseProbeError"
 C=$(code "$BASE/v1/brief/BTC-USDT"); [ "$C" = "402" ] && ok "/v1/brief=402" || bad "/v1/brief=$C"
 grep -q "CDP facilitator 探测未通过" "$LOG" && ok "有降级日志" || bad "缺降级日志"
 stop_app

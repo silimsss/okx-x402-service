@@ -43,6 +43,8 @@ Base 通道走 Coinbase CDP 托管 facilitator，需要免费 API Key（`CDP_API
 支持 Base，**探测不通自动降级**：只关 Base 通道，X Layer 不受影响，`/health` 里能直接
 看到当前各链状态。
 
+> 📖 开通步骤见 [CDP_SETUP.md](CDP_SETUP.md)（分步操作手册 + 故障排查表）。
+
 ```jsonc
 // GET /health
 { "x402": "enabled", "channels": { "eip155:196": "usdt0", "eip155:8453": "usdc", "eip155:56": "pending-merchant-onboarding" } }
@@ -56,6 +58,7 @@ Base 通道走 Coinbase CDP 托管 facilitator，需要免费 API Key（`CDP_API
 npm test              # 原有冒烟 + CDP JWT 单测 + 多链回归
 npm run test:auth     # 只跑 CDP JWT 单测（零依赖，秒级）
 npm run test:multichain   # 5 种模式离线回归，全程 mock facilitator，不需外网
+npm run validate:bazaar   # 调 Coinbase 免鉴权 validate 批量自检 8 个端点（需外网）
 ```
 
 多链回归覆盖：仅 OKX 单通道 / Base 开关开但 CDP 不可达（应降级）/ 双通道正常（402 应同时

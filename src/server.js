@@ -178,9 +178,11 @@ app.get('/health', (_req, res) => {
     x402: !x402Enabled ? 'dev-mode' : (x402State === 'ok' ? 'enabled' : x402State),
     channels: {
       'eip155:196': x402State === 'ok' ? 'usdt0' : 'off',
-      'eip155:8453': baseActive ? 'usdc' : 'off',
+      'eip155:8453': baseActive ? 'usdc' : (mc.baseEnabled() ? 'off:probe-failed' : 'off:not-configured'),
       'eip155:56': 'pending-merchant-onboarding',
     },
+    // 开启 Base 但探测失败时，这里会说明原因（不含密钥），方便排查
+    ...(mc.baseEnabled() && !baseActive ? { baseProbeError: mc.baseProbeError() } : {}),
     endpoints: [
       '/v1/preview/:instId (free)', '/v1/brief/:instId (x402 $0.05)',
       '/v1/sentiment/preview | /public/sentiment (free)', '/v1/sentiment (x402 $0.02)',
