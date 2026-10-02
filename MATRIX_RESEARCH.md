@@ -264,7 +264,51 @@ Nansen      402 -> 7 种支付方式：
 离线回归 `test/smoke-multichain.sh`（5 模式 / 21 断言，全程 mock facilitator）：
 仅 OKX / CDP 不可达降级 / 双通道正常 / facilitator 全挂（进程存活 + 付费 503）/ 开发模式。
 
-### 8.4 Coinbase x402 Bazaar（重要，优先级高于 B402）
+### 8.4 目录真实收入实测（2026-10-02，最重要的一节）
+
+Coinbase 目录的搜索接口是**免鉴权**的，且直接返回每个资源的 `quality` 字段
+（`l30DaysTotalCalls` 30 天调用量、`l30DaysUniquePayers` 独立支付方数）。
+按 `calls × price` 算出**整个赛道的 30 天收入池**：
+
+| 赛道 | 资源数 | 30 天收入池 | 头部服务 |
+|---|---|---|---|
+| crypto price | 16 | **$0.79** | crypto.apitoll.cloud 199 次 × $0.001 = $0.20（52 人） |
+| crypto market briefing | 4 | **$0.53** | kronossignals.com 3 次 × $0.1 = $0.30（3 人） |
+| funding rate | 16 | **$2.25** | agent402.tools 988 次 × $0.002 = $1.98（5 人） |
+| open interest | 20 | **$0.39** | api.agentstools.dev 4 次 × $0.01 = $0.04（3 人） |
+| liquidation | 15 | **$2.21** | liq.lonestaroracle.xyz 16 次 × $0.1 = $1.60（1 人） |
+| fear greed | 20 | **$3.25** | api.kadec0.xyz 36 次 × $0.05 = $1.80（2 人） |
+| trading signal | 14 | **$0.71** | trading-perps.vercel.app 1 次 × $0.25（1 人） |
+
+**crypto 类七个赛道加起来，30 天收入池合计约 $10。** 且大量“头部”只有 1–3 个付费用户
+（很可能是开发者自己测试）。
+
+**扩展到整个生态**（判断是“只有 crypto 不活跃”还是“全生态都不活跃”）：
+
+| 赛道 | 30 天收入池 | 头部 |
+|---|---|---|
+| weather | $0.40 | 39 次 × $0.005（7 人） |
+| news | $1.78 | 111 次 × $0.01（3 人） |
+| tweet | $2.84 | 448 次 × $0.0025（13 人） |
+| search | $0.49 | 11 次 × $0.042（2 人） |
+| translate | $0.82 | 19 次 × $0.01（3 人） |
+| stock price | $0.66 | 102 次 × $0.003（10 人） |
+| sentiment analysis | $101.58 | 10 次 × **$10** = $100（5 人）—— 全表唯一异常值 |
+
+**结论（推翻第七节的乐观判断）**：
+
+1. **目录共 22,004 个服务，但绝大多数 30 天零调用。** 被动等目录曝光拿不到收入。
+2. **这是生态阶段问题，不是我们的问题。** x402 的买家是 Agent，但目前愿意为 API 付 USDC 的
+   Agent 极少，全生态活跃付费流量都极低。
+3. 我们已经把技术侧做到位（Base + X Layer 双通道、8/8 通过 validate、Bazaar 元数据齐全），
+   具备“**一旦有买家就能立刻收钱**”的能力，但**买家从哪来是另一道题**。
+4. **目前唯一已验证有真实成交的市场是 OKX.AI 任务大厅**（总成交 $9,676 / 82,651 任务），
+   而非 x402 目录。战略优先级应据此调整。
+
+> 💡 复查工具：`https://api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=...&limit=20`
+> （免鉴权）返回 `resources[].quality`，可随时复验任何赛道的真实收入池。
+
+### 8.5 Coinbase x402 Bazaar（重要，优先级高于 B402）
 
 官方文档：`docs.cdp.coinbase.com/x402/buyer/discover-services`、`/x402/seller/get-discovered`
 
@@ -312,7 +356,7 @@ extensions: { bazaar: {
 **已落地**：`src/bazaar.js` 声明元数据；`tools/validate-bazaar.js` 批量自检 8 个端点；
 `tools/dump-samples.js` 从 mock 行情抓真实响应作为 `output.example`。
 
-### 8.5 已完成（2026-10-02）
+### 8.7 已完成（2026-10-02）
 
 用户在 Render 填入 `BASE_PAY_TO` / `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` 后：
 
@@ -361,7 +405,7 @@ extensions.bazaar.info.input: { type: "http", method: "GET" }   + output.example
 **决策**：BSC 通道可以去申请（自助、零成本、代码已就绪，`BSC_PAY_TO` + facilitator 一接就行），
 但优先级低——它带来的是“多一条链”的可能性，不是流量。流量在 Coinbase Bazaar（已打通）。
 
-### 8.7 剩下的风险与待办
+### 8.8 剩下的风险与待办
 
 - [ ] **确认 `0xe716…03f8` 在 Base 上能收到并动用 USDC**——地址是 OKX Agentic Wallet 的 EVM 地址，
       同一地址跨链通用，但 Base 网络的 USDC 能否在 OKX 侧看到/提现需实测（首笔成交时验证）
