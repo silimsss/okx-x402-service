@@ -237,11 +237,33 @@ extensions: { bazaar: {
 **已落地**：`src/bazaar.js` 声明元数据；`tools/validate-bazaar.js` 批量自检 8 个端点；
 `tools/dump-samples.js` 从 mock 行情抓真实响应作为 `output.example`。
 
-### 8.5 待办
+### 8.5 已完成（2026-10-02）
 
-- [ ] 用户注册 CDP（portal.cdp.coinbase.com，免费）→ 填 Render 的 `CDP_API_KEY_ID`/`CDP_API_KEY_SECRET`
-- [ ] 用户填 `BASE_PAY_TO`（可先填现有 0xe716…03f8）
-- [ ] Render 构建后 `curl /health` 确认 `channels.eip155:8453: usdc`
-- [ ] 跑 `node tools/validate-bazaar.js` 确认 8 个端点全部 `valid: true`
-- [ ] 换常驻实例（Render Starter / Fly.io）——进 Bazaar 的硬性要求
-- [ ] 有首笔 Base 成交后自动被索引；攒够调用量再争取 curation
+用户在 Render 填入 `BASE_PAY_TO` / `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` 后：
+
+```
+/health -> { x402: "enabled",
+             channels: { "eip155:196": "usdt0", "eip155:8453": "usdc" },
+             baseProbeError: null }
+```
+
+**自实现的 CDP JWT 被 Coinbase 真实接受**（首版实现零返工）。402 实测：
+
+```
+resource.url: https://crypto-market-pulse.onrender.com/v1/sentiment   ← trust proxy 修复后已是 https
+accepts[0]: eip155:8453  USDC  0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913  amount=20000
+accepts[1]: eip155:196  USD₮0 0x779ded0c9e1022225f8e0630b35a9b54be713736  amount=20000
+extensions.bazaar.info.input: { type: "http", method: "GET" }   + output.example ✓
+```
+
+**Coinbase validate：8/8 端点全部 `outcome: accepted`、零失败项**（`npm run check:live` 可随时复验）。
+官方说“任意一个买家成功付过一次款后自动索引，无需任何申请”，因此服务已具备上架条件。
+
+### 8.6 剩下的风险与待办
+
+- [ ] **确认 `0xe716…03f8` 在 Base 上能收到并动用 USDC**——地址是 OKX Agentic Wallet 的 EVM 地址，
+      同一地址跨链通用，但 Base 网络的 USDC 能否在 OKX 侧看到/提现需实测（首笔成交时验证）
+- [ ] 换常驻实例（Render Starter / Fly.io）——Bazaar 策展要求30 天可用性 ≥99%，
+      Render 免费版休眠期达不到，持续失败会被自动下架
+- [ ] 有首笔 Base 成交后确认已被索引；攒够调用量再争取 curation
+- [ ] OKX.AI 广场上架审核（9/30 提交，10/02 仍为 `Listing under review`）
