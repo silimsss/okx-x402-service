@@ -1,0 +1,47 @@
+name: keepalive
+
+# 目的：让 Render 免费档实例（15 分钟无入站请求即休眠）保持 24/7 在线，成本 0。
+#
+# 原理：任何入站 HTTP 请求都会重置 Render 的闲置计时器。公开仓库跑 GitHub Actions
+#       不消耗计费分钟数（免费），所以每 5 分钟 ping 一次 /health 即可常驻。
+#       每 5 分钟是最小粒度，能容忍 GitHub 定时任务的排队延迟，不会出现 >15 分钟空档。
+#
+# 两个已知边界（不影响使用，知道即可）：
+#   1. GitHub 定时任务在高负载时可能延迟数分钟 —— 所以用 */5 而不是 */14。
+#   2. 仓库连续 60 天没有任何提交，GitHub 会自动停用定时任务并给仓库管理员发邮件；
+#      随便推一个 commit 即自动恢复（或到 Actions 页面点 "Enable workflow"）。
+#
+# 手动补 ping：Actions → keepalive → Run workflow。
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping health endpoint
+        run: |
+          set -uo pipefail
+          URL="https://crypto-market-pulse.onrender.com/health"
+          code=""
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o health.json -w "%{http_code}" --max-time 90 "$URL" || echo "000")
+            echo "attempt=$attempt http=$code"
+            if [ "$code" = "200" ]; then
+              grep -q '"ok":true' health.json && { head -c 400 health.json; echo; exit 0; }
+              echo "unexpected body:"; head -c 400 health.json; echo
+            fi
+            sleep 20
+          done
+          echo "::error::keepalive ping failed (last http=$code)"
+          exit 1
