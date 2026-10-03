@@ -19,9 +19,15 @@ const { buildBrief, toPreview } = require('./brief');
 const mx = require('./matrix');
 const rd = require('./radar');
 const xv = require('./crossvenue');
+const keepalive = require('./keepalive');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// 进程启动时刻 + 自保活状态：挂在 /health 上，用于确认「常驻」是否真的生效
+// （uptimeSec 一旦回落到小数值，说明实例被休眠后重启过）
+const STARTED_AT = new Date().toISOString();
+let keepaliveStats = { enabled: false, disabledReason: 'not-started' };
 
 // 必须信任反向代理的 X-Forwarded-Proto：Render 终止 TLS 后转发的请求是 http，
 // 不开这个开关 x402 的 402 会报 resource.url 为 http://，
@@ -182,6 +188,9 @@ app.get('/health', (_req, res) => {
     ok: true,
     service: 'crypto-market-pulse',
     x402: !x402Enabled ? 'dev-mode' : (x402State === 'ok' ? 'enabled' : x402State),
+    startedAt: STARTED_AT,
+    uptimeSec: Math.round(process.uptime()),
+    keepalive: keepaliveStats,
     channels: {
       'eip155:196': x402State === 'ok' ? 'usdt0' : 'off',
       'eip155:8453': baseActive ? 'usdc' : (mc.baseEnabled() ? 'off:probe-failed' : 'off:not-configured'),
@@ -319,6 +328,15 @@ if (require.main === module) {
     app.listen(PORT, () => {
       console.log(`[server] Crypto Market Pulse listening at http://localhost:${PORT}`);
     });
+
+    // 免费档常驻（第一层）：进程活着时每 10 分钟自我 ping 一次自己的公网 URL，
+    // 走 Render 边缘代理算真实入站流量，不断重置 15 分钟闲置计时器。
+    // 实例真休眠后进程已被杀掉，这层就没了，由 GitHub Actions 定时任务兜底唤醒（第二层）。
+    const ka = keepalive.startSelfPing();
+    keepaliveStats = ka.stats;
+    console.log(ka.stats.enabled
+      ? `[keepalive] self-ping on -> ${ka.stats.url} every ${Math.round(ka.stats.intervalMs / 1000)}s`
+      : `[keepalive] self-ping off (${ka.stats.disabledReason})`);
   })();
 }
 
