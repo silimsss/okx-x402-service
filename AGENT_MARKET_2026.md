@@ -635,3 +635,37 @@ CLI 有 `agent update` 命令（更新会重新触发 QA 审核），**建议等
 | 「Kraken 覆盖了我们 3 个端点」 | 已修正：那些端点已撤下；且 Kraken 技能只读自家订单簿，不构成替代 |
 | 「转做 SKILL.md 是出路」 | 已撤回（§7 实测为零） |
 | 「TryBounty 数据已验证」 | 是「平台自述但自洽」，非独立验证（§10.2-10） |
+
+---
+
+## 十四、行动日志（2026-10-03）：§12 三个待决小项落地两项
+
+**待决 1（常驻化）→ 已完成。** 新增 `.github/workflows/keepalive.yml`：GitHub Actions 定时
+（cron `*/5 * * * *`）每 5 分钟 GET `https://crypto-market-pulse.onrender.com/health`，
+任何入站请求都会重置 Render 的闲置计时器。
+
+- 为什么是 5 分钟而不是 14 分钟：GitHub 定时任务在高负载时会延迟，`*/5` 才能保证不出现
+  >15 分钟空档（Render 免费档休眠阈值）。
+- 成本 0：公开仓库跑 Actions 不消耗计费分钟数，也不需要第三方账号（用户不懂技术，这点重要）。
+- 已实测：`workflow_dispatch` 手动触发一次，run `37106029410` 结论 success —— 脚本要求
+  HTTP 200 **且** body 含 `"ok":true` 才退出 0，所以这次成功等于证明 ping 路径与内容校验都通。
+- 预算复核：750 小时/月 ÷ 单服务 31 天 744 小时，卡在额度内；休眠不耗小时。
+- 已知边界（写进 POST_APPROVAL.md）：仓库连续 60 天无提交，GitHub 会自动停用定时任务，
+  推任意 commit 即恢复。
+
+**待决 3（OKX 资料过时）→ 已提前做掉。** §12 当时建议「等当前审核结束后再动」，但用户本轮
+明确要求把剩余服务全部上架 —— 于是 5 个服务（跨所费率 0.04 / 聪明钱 0.03 / 情绪 0.02 /
+持仓量 0.02 / A2A 月订 12U 含 72h 试用）连同 Agent 卡片简介一次性提交，平台回写
+`approvalRemark: 改资料触发重新审批`，服务总数 **2 → 7**（id 41442~41446）。
+
+- 提交前发现并修掉一个会出事的地方：旧 `service-additions.json` 还停留在「撤下资金费率/
+  三合一/爆仓」之前的 9 服务版本 —— 直接发会重复上架已存在的服务、并把已撤下的商品重新
+  摆上货架。本文件 §10.2 立的那条规则（描述过期即重写，不靠记忆）在这里第一次真正救场。
+- 撤下的三个服务路由仍在线上（`/public/funding`、`/public/combo`、`/public/liquidation`
+  继续免费开放用于引流），只是不再作为商品出售。
+
+**待决 2（$0.005 微端对照实验）→ 仍未做**，等 OKX 审核结果与首批真实数据出来再决定。
+
+服务清单、txHash 与后续步骤全部落在 [`POST_APPROVAL.md`](POST_APPROVAL.md)；重新提交时
+用到的增量清单是 [`service-additions.json`](service-additions.json)，卡片简介原文见
+[`agent-description.txt`](agent-description.txt)。
