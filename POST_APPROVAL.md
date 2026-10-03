@@ -20,6 +20,17 @@ Agent #14050「Crypto Market Pulse」
 - 增量清单已执行完毕（`service-additions.json` 全部是 `operation: create`）
   ⚠️ **不要重复发送** —— 再发一次会重复上架一批同名服务
 
+三个 JSON 文件的分工（别再拿错，2026-10-03 就因为拿错旧清单差点重复上架）：
+
+| 文件 | 内容 | 能不能拿去跑 update |
+|------|------|--------------------|
+| `service.json` | 最初提交的 2 服务原始清单 | ❌ 历史存档 |
+| `service-all.json` | 现行 7 服务的完整目录（人类可读快照）| ❌ 整表发送会重复 create |
+| `service-additions.json` | 本次真正发送的 5 条增量 | ❌ 已执行，重发=重复上架 |
+
+下一次要改价/改名/上新，**新写一份增量清单**（改已上架的用 `operation:update` + `id`，
+新的用 `create`），不要复用上面任何一份。
+
 ## 服务全景（7 个）
 
 | # | 服务 | 服务 ID | 类型 | 定价 | 端点 |
@@ -60,19 +71,36 @@ x402 结算直达该钱包，USDT（USD₮0, X Layer）。
 - X 推文文案（模板思路已备好）
 - 任务大厅匹配「行情/数据简报」类任务用 A2A 或免费交付接单，换首批真实评价
 
-## 24 小时常驻（已解决免费档休眠）
+## 24 小时常驻（已解决免费档休眠）—— 两层机制
 
-Render 免费档 15 分钟无入站请求即休眠。现由 GitHub Actions 定时补流量：
+Render 免费档 15 分钟无入站请求就休眠。单一手段守不住（下面有实测教训），所以做成两层：
 
-- 文件：`.github/workflows/keepalive.yml`
-- 频率：每 5 分钟（最小粒度）GET `/health`，任何入站请求都会重置 Render 闲置计时器
-- 成本：公开仓库跑 Actions 不消耗计费分钟数，¥0
-- 计费：免费档 750 小时/月，单服务 31 天上限 744 小时，**刚好卡在额度内**
-- 手动补一次：仓库 → Actions → keepalive → Run workflow
-- 已知边界：GitHub 定时任务可能延迟数分钟（所以用 5 分钟而非 14 分钟）；
-  仓库连续 60 天无提交会被自动停用定时任务，推任意 commit 即恢复
-- 若发现仍然被休眠（连续错过两次 ping），备选方案是外部免费 cron
-  （cron-job.org / UptimeRobot，各 5 分钟档，需要注册账号）——告诉我，我来配
+| 层 | 位置 | 作用 | 失效场景 |
+|----|------|------|----------|
+| 主力 | `src/keepalive.js`（进程内定时器） | 每 10 分钟请求自己的公网 URL（读 `RENDER_EXTERNAL_URL`），走 Render 边缘代理属于真实入站流量，不断重置闲置计时器 → 只要进程活着就不会休眠 | 实例真休眠后进程已被杀，定时器随之消失 |
+| 兜底 | `.github/workflows/keepalive.yml` | 每 5 分钟 GET `/health`，把已经睡着的实例叫醒 | GitHub 的 cron 是「尽力而为」，会延迟甚至整轮漏跑 |
+
+**为什么不能让 Actions 单独扛**（2026-10-03 实测）：workflow 推上默认分支后 35 分钟内
+一次 `schedule` 事件都没触发（workflow 状态 active、手动 dispatch 秒成功、脚本内含 body 校验），
+而 Render 的休眠阈值只有 15 分钟 —— 只要 GitHub 排一次队，商店就锁门。查证后确认这是
+GitHub 的已知行为（高负载下延迟数十分钟至数小时、偶发整轮丢）—— 所以「零成本常驻」
+不能只靠 Actions，必须由进程内那层兜着。
+
+- 成本：公开仓库跑 Actions 不计费；免费档 750 小时/月，单服务 31 天上限 744 小时
+- 自证字段：`/health` 的 `uptimeSec`（掉回小数值 = 被休眠重启过）、
+  `keepalive.count` / `lastStatus` / `lastError`（自 ping 正常与否，不用猜）
+- 开关：`KEEPALIVE_SELF_PING=0` 关掉自 ping；`KEEPALIVE_INTERVAL_MS` 改周期；
+  `SELF_URL` 覆盖目标地址
+- 部署：Render 已开自动部署，push 到 main 即自动重建（~1 分钟，实测）
+- 手动补 ping：仓库 → Actions → keepalive → Run workflow
+- 已知边界：仓库连续 60 天无提交会被 GitHub 停用定时任务（推 commit 即恢复）；
+  此时主力层仍在工作，只是「已经睡着的实例」少了兜底
+- **实测结论（2026-10-03 08:15 UTC）**：自 ping 上线后刻意 20 分钟不发任何外部请求
+  （同一时段 GitHub Actions 一次 schedule 都没跑到，runs 列表里只有手动触发那一条），
+  `/health` 仍返回 **0.78s**（睡着的话冷启动约 13s）、`uptimeSec=1295`（22 分钟未重启）、
+  `keepalive.count=2` `lastStatus=200` —— 保活确实由进程内那层独立完成，不依赖 GitHub。
+- 若哪天发现 `uptimeSec` 反复回落到 0（说明自 ping 不被算作活跃流量），备选方案是外部
+  免费 cron（cron-job.org / UptimeRobot，各 5 分钟档，需要注册账号）——告诉我，我来配
 
 ## 日常监控命令
 ```
